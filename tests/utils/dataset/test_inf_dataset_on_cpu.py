@@ -12,7 +12,7 @@ sys.path.insert(0, f"{cur_path}/..")
 from omegaconf import DictConfig
 
 from verl.utils import hf_processor, hf_tokenizer
-from verl.utils.dataset.doc_dataset import DocDataset
+from verl.utils.dataset.inf_dataset import DocDataset
 
 
 class TestDocDataset(unittest.TestCase):
@@ -29,7 +29,7 @@ class TestDocDataset(unittest.TestCase):
     def test_load_single_data_files(self):
         """Test loading single data files."""
 
-        data_files = "/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/train_markdown_251103_sample3_v1.json"
+        data_files = "/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/val_markdown_251103_sample3_v1.json"
         doc_dataset = DocDataset(
             data_files=data_files,
             tokenizer=self.tokenizer,
@@ -37,13 +37,21 @@ class TestDocDataset(unittest.TestCase):
             config=self.cfg,
         )
         self.assertEqual(len(doc_dataset), 3)
+        self.assertTrue("input_ids" in doc_dataset[0])
+        self.assertTrue("attention_mask" in doc_dataset[0])
+        self.assertTrue("position_ids" in doc_dataset[0])
+        self.assertTrue("raw_prompt_ids" in doc_dataset[0])
+        self.assertTrue("data_source" in doc_dataset[0])
+        self.assertTrue("reward_model" in doc_dataset[0])
+        self.assertEqual(doc_dataset[0]["reward_model"]["style"], "rule")
+        self.assertTrue("ground_truth" in doc_dataset[0]["reward_model"])
 
     def test_load_multiple_data_files(self):
         """Test loading multiple data files."""
 
         data_files = [
-            "/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/train_markdown_251103_sample3_v1.json",
-            "/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/train_markdown_251103_sample3_v1.json"
+            "/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/val_markdown_251103_sample3_v1.json",
+            "/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/val_markdown_251103_sample3_v1.json"
         ]
         doc_dataset = DocDataset(
             data_files=data_files,
@@ -52,6 +60,14 @@ class TestDocDataset(unittest.TestCase):
             config=self.cfg,
         )
         self.assertEqual(len(doc_dataset), 6)
+        self.assertTrue("input_ids" in doc_dataset[0])
+        self.assertTrue("attention_mask" in doc_dataset[0])
+        self.assertTrue("position_ids" in doc_dataset[0])
+        self.assertTrue("raw_prompt_ids" in doc_dataset[0])
+        self.assertTrue("data_source" in doc_dataset[0])
+        self.assertTrue("reward_model" in doc_dataset[0])
+        self.assertEqual(doc_dataset[0]["reward_model"]["style"], "rule")
+        self.assertTrue("ground_truth" in doc_dataset[0]["reward_model"])
 
 
 if __name__ == '__main__':

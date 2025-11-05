@@ -105,32 +105,31 @@ if [ "$NODE_RANK" = "0" ]; then
     EP=${EP:-8}
     ETP=${ETP:-1}
 
-    train_path=/home/ma-user/work/data_mllm/datasets/multimodal_rlhf/geo3k_verl/train.parquet
-    test_path=/home/ma-user/work/data_mllm/datasets/multimodal_rlhf/geo3k_verl/train.parquet
+    train_path="/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/train_markdown_251103_400k_v1.json"
+    test_path="/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/val_markdown_251103_sample3_v1.json"
 
-    project_name="verl_grpo_example_geo3k"
-    experiment_name="qwen3_vl_30b_megatron"
-    # reward_fn_path="verl/utils/reward_score/geo3k.py"
+    project_name="infinity_parser2"
+    experiment_name="qwen3_vl_30b_a3b_grpo_infdoc_400k_mcore"
+    reward_fn_path="examples/inf/reward_functions/edit_distance.py"
     current_script="$(realpath "$0")"
     experiment_dir="checkpoints/${project_name}/${experiment_name}"
 
     sudo mkdir -p ${experiment_dir}
     sudo chmod -R 777 ${experiment_dir}
     sudo cp -f "$current_script" ${experiment_dir}
-    # sudo cp -f "$reward_fn_path" ${experiment_dir}
-
-    # NOTE: you can customize reward function by setting:
-    #   custom_reward_function.path=${reward_fn_path} \
-    #   custom_reward_function.name=compute_score \
+    sudo cp -f "$reward_fn_path" ${experiment_dir}
 
     python3 -m verl.trainer.main_ppo --config-path=config \
         --config-name='ppo_megatron_trainer.yaml'\
         algorithm.adv_estimator=grpo \
+        data.custom_cls.path="verl/utils/dataset/inf_dataset.py" \
+        data.custom_cls.name="DocDataset" \
         data.train_files="$train_path" \
         data.val_files="$test_path" \
         data.train_batch_size=512 \
-        data.max_prompt_length=1024 \
-        data.max_response_length=2048 \
+        data.max_prompt_length=4096 \
+        data.max_response_length=8192 \
+        data.prompt_key="conversations" \
         data.filter_overlong_prompts=True \
         data.truncation='error' \
         actor_rollout_ref.model.path=$HF_MODEL_PATH \
@@ -149,11 +148,11 @@ if [ "$NODE_RANK" = "0" ]; then
         actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=1 \
         actor_rollout_ref.rollout.tensor_model_parallel_size=$GEN_TP \
         actor_rollout_ref.actor.use_dynamic_bsz=True \
-        actor_rollout_ref.actor.ppo_max_token_len_per_gpu=4096 \
+        actor_rollout_ref.actor.ppo_max_token_len_per_gpu=8192 \
         actor_rollout_ref.ref.log_prob_use_dynamic_bsz=True \
-        actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=4096 \
+        actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=8192 \
         actor_rollout_ref.rollout.log_prob_use_dynamic_bsz=True \
-        actor_rollout_ref.rollout.log_prob_max_token_len_per_gpu=4096 \
+        actor_rollout_ref.rollout.log_prob_max_token_len_per_gpu=8192 \
         actor_rollout_ref.rollout.name=$ENGINE \
         +actor_rollout_ref.rollout.engine_kwargs.vllm.disable_mm_preprocessor_cache=True \
         actor_rollout_ref.rollout.gpu_memory_utilization=0.7 \
@@ -177,15 +176,17 @@ if [ "$NODE_RANK" = "0" ]; then
         +actor_rollout_ref.actor.megatron.override_transformer_config.gradient_accumulation_fusion=True \
         +actor_rollout_ref.actor.megatron.override_transformer_config.moe_permute_fusion=True \
         algorithm.use_kl_in_reward=False \
+        custom_reward_function.path=${reward_fn_path} \
+        custom_reward_function.name=compute_score \
         trainer.critic_warmup=0 \
         trainer.logger='["console","swanlab"]' \
         trainer.project_name=${project_name} \
         trainer.experiment_name=${experiment_name} \
         trainer.n_gpus_per_node=${NGPUS_PER_NODE} \
         trainer.nnodes=${NNODES} \
-        trainer.save_freq=20 \
-        trainer.test_freq=5 \
-        trainer.total_epochs=15 $@
+        trainer.save_freq=200 \
+        trainer.test_freq=200 \
+        trainer.total_epochs=1 $@
 
     echo "finish training"
 fi

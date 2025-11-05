@@ -32,8 +32,29 @@ from transformers import PreTrainedTokenizer, ProcessorMixin
 import verl.utils.torch_functional as verl_F
 from verl.utils.model import compute_position_id_with_mask
 from verl.utils.dataset.rl_dataset import RLHFDataset
+from verl.utils.dataset import vision_utils
 
 logger = logging.getLogger(__name__)
+
+from io import BytesIO
+from PIL import Image
+from qwen_vl_utils import fetch_image
+
+
+def custom_process_image(image: str | dict | Image.Image, image_patch_size: int = 14) -> Image.Image:
+    if isinstance(image, str):
+        return Image.open(image).convert("RGB")
+
+    if isinstance(image, Image.Image):
+        return image.convert("RGB")
+
+    if "bytes" in image:
+        assert "image" not in image, "Cannot have both `bytes` and `image`"
+        image["image"] = Image.open(BytesIO(image["bytes"]))
+
+    return fetch_image(image, image_patch_size=image_patch_size)
+
+vision_utils.process_image = custom_process_image
 
 
 class DocDataset(RLHFDataset):
@@ -57,7 +78,7 @@ class DocDataset(RLHFDataset):
 
         def func(example):
             data_source = example.get("attributes", {}).get("task", "doc")
-            ground_truth = example["conversations"][-1]["value"]
+            ground_truth = example[self.prompt_key][-1]["value"]
             example["data_source"] = data_source
             example["reward_model"] = {"style": "rule", "ground_truth": ground_truth}
             return example
