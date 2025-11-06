@@ -1,6 +1,70 @@
 import json
 import re
-from typing import Dict, List
+from typing import Dict, List, Tuple
+from PIL import Image
+from qwen_vl_utils import smart_resize
+
+
+def load_image(image: str) -> Image.Image:
+    image = Image.open(image)
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+    return image
+
+
+def load_images(images: str | List[str]) -> List[Image.Image]:
+    if isinstance(images, str):
+        images = [images]
+    images = [load_image(image) for image in images]
+    return images
+
+
+def get_norm_shapes(
+    images: List[Image.Image], patch_factor: int, min_pixels: int, max_pixels: int
+) -> List:
+    norm_shapes = []
+    for image in images:
+        resized_height, resized_width = smart_resize(
+            image.height,
+            image.width,
+            factor=patch_factor,
+            min_pixels=min_pixels,
+            max_pixels=max_pixels,
+        )
+        norm_shapes.append([resized_width, resized_height])
+    return norm_shapes
+
+
+def normalize_bbox(
+    objects: Dict,
+    images: List[Image.Image],
+    norm_bbox: str,
+    patch_factor: int,
+    min_pixels: int,
+    max_pixels: int,
+) -> None:
+    objects["width"] = [image.width for image in images]
+    objects["height"] = [image.height for image in images]
+    norm_shapes = get_norm_shapes(images, patch_factor, min_pixels, max_pixels)
+
+    bbox_list = objects["bbox"]
+    width_list = objects["width"]
+    height_list = objects["height"]
+    bbox_type = objects.pop("bbox_type", None) or "real"
+    image_id_list = objects.pop("image_id", None) or []
+    image_id_list += [0] * (len(bbox_list) - len(image_id_list))
+    for bbox, image_id in zip(bbox_list, image_id_list):
+        if bbox_type == "norm1":
+            width, height = 1, 1
+        else:
+            width, height = width_list[image_id], height_list[image_id]
+        for i, (x, y) in enumerate(zip(bbox[::2], bbox[1::2])):
+            if norm_bbox == "norm1000":
+                norm_width, norm_height = 1000, 1000
+            elif norm_bbox == "none":
+                norm_width, norm_height = norm_shapes[image_id]
+            bbox[2 * i] = int(round(x / width * norm_width))
+            bbox[2 * i + 1] = int(round(y / height * norm_height))
 
 
 def _split_str_by_regex(text: str, regex_delimiters: List[str]) -> List[str]:
@@ -124,11 +188,8 @@ def replace_special_tokens(context, objects, bbox_format="new"):
 if __name__ == "__main__":
     context = '```json\n[{"bbox": <bbox>, "category": "<ref-object>", "text": "[香·格·里·拉]\\nShangri-La..."}, {"bbox": <bbox>, "category": "<ref-object>", "text": ""}]\n```'
     objects = {
-        "ref": [
-            "header",
-            "figure"
-        ],
-        "bbox": [[282, 6, 404, 49], [40, 62, 328, 252]]
+        "ref": ["header", "figure"],
+        "bbox": [[282, 6, 404, 49], [40, 62, 328, 252]],
     }
     print(context)
     context_list = _split_special_tokens(context)

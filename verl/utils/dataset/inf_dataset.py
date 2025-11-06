@@ -33,7 +33,11 @@ import verl.utils.torch_functional as verl_F
 from verl.utils.model import compute_position_id_with_mask
 from verl.utils.dataset.rl_dataset import RLHFDataset
 from verl.utils.dataset import vision_utils
-from verl.utils.dataset.inf_utils import replace_special_tokens
+from verl.utils.dataset.inf_utils import (
+    load_images,
+    normalize_bbox,
+    replace_special_tokens,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +47,12 @@ from PIL import Image
 from qwen_vl_utils import fetch_image, vision_process
 
 
-def custom_process_image(image: str | Image.Image, image_patch_size: int = 14) -> Image.Image:
+def custom_process_image(
+    image: str | Image.Image, image_patch_size: int = 14
+) -> Image.Image:
     ele = {"image": image}
     return fetch_image(ele, image_patch_size=image_patch_size)
+
 
 vision_utils.process_image = custom_process_image
 
@@ -78,19 +85,21 @@ class DocDataset(RLHFDataset):
         # set min pixels and max pixels
         if metadata.version("qwen-vl-utils") >= "0.0.14":
             patch_factor = 16 * 2
-            self.min_pixels = config.get("min_pixels", 4 * patch_factor ** 2)
-            self.max_pixels = config.get("max_pixels", 16384 * patch_factor ** 2)
-            vision_process.IMAGE_MIN_TOKEN_NUM = self.min_pixels // (patch_factor ** 2)
-            vision_process.IMAGE_MAX_TOKEN_NUM = self.max_pixels // (patch_factor ** 2)
+            self.min_pixels = config.get("min_pixels", 4 * patch_factor**2)
+            self.max_pixels = config.get("max_pixels", 16384 * patch_factor**2)
+            vision_process.IMAGE_MIN_TOKEN_NUM = self.min_pixels // (patch_factor**2)
+            vision_process.IMAGE_MAX_TOKEN_NUM = self.max_pixels // (patch_factor**2)
         else:
             patch_factor = 14 * 2
-            self.min_pixels = config.get("min_pixels", 4 * patch_factor ** 2)
-            self.max_pixels = config.get("max_pixels", 16384 * patch_factor ** 2)
+            self.min_pixels = config.get("min_pixels", 4 * patch_factor**2)
+            self.max_pixels = config.get("max_pixels", 16384 * patch_factor**2)
             vision_process.MIN_PIXELS = self.min_pixels
             vision_process.MAX_PIXELS = self.max_pixels
+        self.patch_factor = patch_factor
 
-        # set bbox format
+        # set bbox format and norm bbox
         self.bbox_format = config.get("bbox_format", "new")
+        self.norm_bbox = config.get("norm_bbox", "none")
 
         super().__init__(data_files, tokenizer, config, processor, max_samples)
 
@@ -101,7 +110,20 @@ class DocDataset(RLHFDataset):
             ground_truth = example[self.prompt_key][-1]["value"]
             if "objects" in example:
                 objects = example["objects"]
-                ground_truth = replace_special_tokens(ground_truth, objects, self.bbox_format)
+                # load images
+                images = load_images(example[self.image_key])
+                # normalize bbox
+                normalize_bbox(
+                    objects,
+                    images,
+                    self.norm_bbox,
+                    self.patch_factor,
+                    self.min_pixels,
+                    self.max_pixels,
+                )
+                ground_truth = replace_special_tokens(
+                    ground_truth, objects, self.bbox_format
+                )
             example["data_source"] = data_source
             example["reward_model"] = {"style": "rule", "ground_truth": ground_truth}
             return example
@@ -113,8 +135,8 @@ class DocDataset(RLHFDataset):
         for data_file in self.data_files:
             # Read JSON/JSONL/TXT files and cache.
             # Refer to https://git.infly.tech/inf_algo/ms-swift/-/blob/main/swift/llm/dataset/loader.py?ref_type=heads#L208-209
-            ext = os.path.splitext(data_file)[1].lstrip('.')
-            file_type = {'jsonl': 'json', 'txt': 'text'}.get(ext) or ext
+            ext = os.path.splitext(data_file)[1].lstrip(".")
+            file_type = {"jsonl": "json", "txt": "text"}.get(ext) or ext
             dataframe = datasets.load_dataset(file_type, data_files=data_file)["train"]
             dataframes.append(dataframe)
         self.dataframe: datasets.Dataset = datasets.concatenate_datasets(dataframes)
@@ -132,10 +154,10 @@ class DocDataset(RLHFDataset):
             self.dataframe = self.dataframe.select(indices.tolist())
             print(f"selected {self.max_samples} random samples out of {total}")
 
-        self.dataframe = self.maybe_filter_out_long_prompts(self.dataframe)
-
         # add data source and ground_truth
         self.dataframe = self.add_source_and_gt(self.dataframe)
+        # filter long prompts
+        self.dataframe = self.maybe_filter_out_long_prompts(self.dataframe)
 
     def _build_messages(self, example: dict[str, Any]) -> list[dict[str, Any]]:
         prompt_str: str = example.pop(self.prompt_key)[0]["value"]
