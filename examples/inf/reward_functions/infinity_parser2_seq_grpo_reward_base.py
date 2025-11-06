@@ -53,8 +53,6 @@ def truncate_last_incomplete_element(text: str):
     return text, False
 
 
-
-
 class DocumentParserReward:
     def __init__(self, text_weight: float = 0.5, layout_weight: float = 0.5):
         """
