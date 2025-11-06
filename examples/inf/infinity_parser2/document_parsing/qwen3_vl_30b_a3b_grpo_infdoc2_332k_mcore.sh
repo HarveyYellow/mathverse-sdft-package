@@ -132,6 +132,7 @@ if [ "$NODE_RANK" = "0" ]; then
         data.train_max_samples=50000 \
         data.train_batch_size=512 \
         data.image_patch_size=16 \
+        +data.max_pixels=1806336 \
         data.max_prompt_length=4096 \
         data.max_response_length=4096 \
         data.prompt_key="conversations" \
