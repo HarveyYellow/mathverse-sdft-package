@@ -96,7 +96,8 @@ if [ "$NODE_RANK" = "0" ]; then
     echo "ENGINE: $ENGINE"
 
     # HF_MODEL_PATH=${HF_MODEL_PATH:-"${RAY_DATA_HOME}/models/Qwen3-VL-30B-A3B-Instruct"}
-    HF_MODEL_PATH="/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-30B-A3B-Instruct"
+    # HF_MODEL_PATH="/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-30B-A3B-Instruct"
+    HF_MODEL_PATH="/home/ma-user/work/liweizhen/ms-swift/output/qwen3_vl_30b_a3b_sft_infdoc_332k_mcore/v0-20251104-045249-hf"
 
     GEN_TP=${GEN_TP:-4}
     CP=${CP:-1}
