@@ -36,23 +36,15 @@ from verl.utils.dataset import vision_utils
 
 logger = logging.getLogger(__name__)
 
+from importlib import metadata
 from io import BytesIO
 from PIL import Image
-from qwen_vl_utils import fetch_image
+from qwen_vl_utils import fetch_image, vision_process
 
 
-def custom_process_image(image: str | dict | Image.Image, image_patch_size: int = 14) -> Image.Image:
-    if isinstance(image, str):
-        return Image.open(image).convert("RGB")
-
-    if isinstance(image, Image.Image):
-        return image.convert("RGB")
-
-    if "bytes" in image:
-        assert "image" not in image, "Cannot have both `bytes` and `image`"
-        image["image"] = Image.open(BytesIO(image["bytes"]))
-
-    return fetch_image(image, image_patch_size=image_patch_size)
+def custom_process_image(image: str | Image.Image, image_patch_size: int = 14) -> Image.Image:
+    ele = {"image": image}
+    return fetch_image(ele, image_patch_size=image_patch_size)
 
 vision_utils.process_image = custom_process_image
 
@@ -73,6 +65,30 @@ class DocDataset(RLHFDataset):
         config (DictConfig): Options like cache_dir, prompt_key, max_prompt_length, truncation, etc.
         processor (ProcessorMixin, optional): Multimodal preprocessor for images/videos.
     """
+
+    def __init__(
+        self,
+        data_files: str | list[str],
+        tokenizer: PreTrainedTokenizer,
+        config: DictConfig,
+        processor: Optional[ProcessorMixin] = None,
+        max_samples: int = -1,
+    ):
+        # set min pixels and max pixels
+        if metadata.version("qwen-vl-utils") >= "0.0.14":
+            patch_factor = 16 * 2
+            self.min_pixels = config.get("min_pixels", 4 * patch_factor ** 2)
+            self.max_pixels = config.get("max_pixels", 16384 * patch_factor ** 2)
+            vision_process.IMAGE_MIN_TOKEN_NUM = self.min_pixels // (patch_factor ** 2)
+            vision_process.IMAGE_MAX_TOKEN_NUM = self.max_pixels // (patch_factor ** 2)
+        else:
+            patch_factor = 14 * 2
+            self.min_pixels = config.get("min_pixels", 4 * patch_factor ** 2)
+            self.max_pixels = config.get("max_pixels", 16384 * patch_factor ** 2)
+            vision_process.MIN_PIXELS = self.min_pixels
+            vision_process.MAX_PIXELS = self.max_pixels
+
+        super().__init__(data_files, tokenizer, config, processor, max_samples)
 
     def add_source_and_gt(self, dataset):
 

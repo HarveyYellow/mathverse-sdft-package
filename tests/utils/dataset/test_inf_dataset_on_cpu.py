@@ -24,6 +24,7 @@ class TestDocDataset(unittest.TestCase):
         "prompt_key": "conversations",
         "image_patch_size": 16,
         "filter_overlong_prompts_workers": 1,
+        "max_pixels": 1344 * 1344,
     })
 
     def test_load_single_data_files(self):
