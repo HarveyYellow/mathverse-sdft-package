@@ -108,10 +108,11 @@ if [ "$NODE_RANK" = "0" ]; then
     train_path="/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/infinity_doc2_pdf2md_data_swift_format_final_332k.json"
     test_path="/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/infinity_doc2_pdf2md_data_swift_sample3_v1.json"
 
-    project_name="infinity_parser2"
-    experiment_name="qwen3_vl_30b_a3b_grpo_infdoc2_332k_mcore"
-    reward_fn_path="examples/inf/reward_functions/edit_distance.py"
     current_script="$(realpath "$0")"
+    script_basename=$(basename "$current_script")
+    project_name="infinity_parser2"
+    experiment_name="${script_basename%.*}"
+    reward_fn_path="examples/inf/reward_functions/edit_distance.py"
     experiment_dir="checkpoints/${project_name}/${experiment_name}"
 
     sudo mkdir -p ${experiment_dir}
@@ -122,8 +123,8 @@ if [ "$NODE_RANK" = "0" ]; then
     python3 -m verl.trainer.main_ppo --config-path=config \
         --config-name='ppo_megatron_trainer.yaml'\
         algorithm.adv_estimator=grpo \
-        data.bbox_format="new" \
-        data.norm_bbox="norm1000" \
+        +data.bbox_format="new" \
+        +data.norm_bbox="norm1000" \
         data.custom_cls.path="verl/utils/dataset/inf_dataset.py" \
         data.custom_cls.name="DocDataset" \
         data.train_files="$train_path" \
