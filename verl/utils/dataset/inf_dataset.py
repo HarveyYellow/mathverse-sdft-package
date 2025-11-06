@@ -20,7 +20,7 @@ import os
 import re
 import traceback
 from collections import defaultdict
-from typing import Optional, Any
+from typing import Optional, Any, List
 
 import datasets
 import numpy as np
@@ -33,6 +33,7 @@ import verl.utils.torch_functional as verl_F
 from verl.utils.model import compute_position_id_with_mask
 from verl.utils.dataset.rl_dataset import RLHFDataset
 from verl.utils.dataset import vision_utils
+from verl.utils.dataset.inf_utils import replace_special_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,9 @@ class DocDataset(RLHFDataset):
             vision_process.MIN_PIXELS = self.min_pixels
             vision_process.MAX_PIXELS = self.max_pixels
 
+        # set bbox format
+        self.bbox_format = config.get("bbox_format", "new")
+
         super().__init__(data_files, tokenizer, config, processor, max_samples)
 
     def add_source_and_gt(self, dataset):
@@ -95,6 +99,9 @@ class DocDataset(RLHFDataset):
         def func(example):
             data_source = example.get("attributes", {}).get("task", "doc")
             ground_truth = example[self.prompt_key][-1]["value"]
+            if "objects" in example:
+                objects = example["objects"]
+                ground_truth = replace_special_tokens(ground_truth, objects, self.bbox_format)
             example["data_source"] = data_source
             example["reward_model"] = {"style": "rule", "ground_truth": ground_truth}
             return example

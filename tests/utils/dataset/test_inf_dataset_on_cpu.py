@@ -25,6 +25,7 @@ class TestDocDataset(unittest.TestCase):
         "image_patch_size": 16,
         "filter_overlong_prompts_workers": 1,
         "max_pixels": 1344 * 1344,
+        "bbox_format": "new",
     })
 
     def test_load_single_data_files(self):
@@ -69,6 +70,29 @@ class TestDocDataset(unittest.TestCase):
         self.assertTrue("reward_model" in doc_dataset[0])
         self.assertEqual(doc_dataset[0]["reward_model"]["style"], "rule")
         self.assertTrue("ground_truth" in doc_dataset[0]["reward_model"])
+
+    def test_replace_special_tokens(self):
+        """Test replace special tokens."""
+
+        data_files = "/home/ma-user/work/datasets/Infinity-Doc2/document_parsing/labels/infinity_doc2_pdf2md_data_swift_sample3_v1.json"
+        doc_dataset = DocDataset(
+            data_files=data_files,
+            tokenizer=self.tokenizer,
+            processor=self.processor,
+            config=self.cfg,
+        )
+        self.assertGreater(len(doc_dataset), 0)
+        self.assertTrue("input_ids" in doc_dataset[0])
+        self.assertTrue("attention_mask" in doc_dataset[0])
+        self.assertTrue("position_ids" in doc_dataset[0])
+        self.assertTrue("raw_prompt_ids" in doc_dataset[0])
+        self.assertTrue("data_source" in doc_dataset[0])
+        self.assertTrue("reward_model" in doc_dataset[0])
+        self.assertEqual(doc_dataset[0]["reward_model"]["style"], "rule")
+        self.assertTrue("ground_truth" in doc_dataset[0]["reward_model"])
+        self.assertTrue("<bbox>" not in doc_dataset[0]["reward_model"]["ground_truth"])
+        self.assertTrue("<ref-object>" not in doc_dataset[0]["reward_model"]["ground_truth"])
+        print(doc_dataset[0]["reward_model"]["ground_truth"])
 
 
 if __name__ == '__main__':
