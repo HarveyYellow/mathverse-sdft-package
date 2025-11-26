@@ -151,6 +151,7 @@ if [ "$NODE_RANK" = "0" ]; then
         +actor_rollout_ref.actor.optim.override_optimizer_config.use_precision_aware_optimizer=True \
         actor_rollout_ref.actor.optim.lr=1e-6 \
         actor_rollout_ref.rollout.name=vllm \
+        actor_rollout_ref.rollout.mode="sync" \
         actor_rollout_ref.rollout.n=8 \
         actor_rollout_ref.rollout.gpu_memory_utilization=0.9 \
         actor_rollout_ref.rollout.tensor_model_parallel_size=2 \
