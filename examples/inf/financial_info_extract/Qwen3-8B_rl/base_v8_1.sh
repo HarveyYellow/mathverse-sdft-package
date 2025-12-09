@@ -12,10 +12,9 @@ export MKL_THREADING_LAYER=GNU
 # export RAY_IGNORE_UNHANDLED_ERRORS=1
 
 export CUDA_DEVICE_MAX_CONNECTIONS=1 # For megatron communication/computation overlapping
-export MKL_NUM_THREADS=16
 
 # dependency: vllm>=0.11.0, megatron-lm>=0.13, mbridge with qwen3vl_cp branch
-# environment option1: use a stable container later than docker://verlai/verl:vllm011.dev6 
+# environment option1: use a stable container later than docker://verlai/verl:vllm011.dev6
     # and install mbridge in it by following the instruction in the container
             # pip remove mbridge if you have installed it
             # pip install git+https://github.com/ISEEKYAN/mbridge.git@qwen3vl_cp # for correct mbridge
@@ -42,6 +41,8 @@ echo "=============================="
 
 HF_MODEL_PATH="/home/ma-user/work/fengjianming/work/LLMs/Qwen3-8B"
 max_model_len=40960
+max_prompt_length=38912
+max_response_length=$(expr $max_model_len - $max_prompt_length)
 train_path="/home/ma-user/work/fengjianming/work/INF-FinDocBench/train/v8_1_8b_dense_rl/train.parquet"
 project_name="financial_info_extract"
 reward_fn_path="examples/inf/reward_functions/financial_info_extract.py"
@@ -120,8 +121,8 @@ if [ "$NODE_RANK" = "0" ]; then
         data.seed=42 \
         +data.apply_chat_template_kwargs.enable_thinking=False \
         data.train_batch_size=128 \
-        data.max_prompt_length=38912 \
-        data.max_response_length=2048 \
+        data.max_prompt_length=$max_prompt_length \
+        data.max_response_length=$max_response_length \
         data.filter_overlong_prompts=True \
         data.filter_overlong_prompts_workers=128 \
         data.truncation='error' \
@@ -133,7 +134,7 @@ if [ "$NODE_RANK" = "0" ]; then
         actor_rollout_ref.actor.ppo_mini_batch_size=32 \
         actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=1 \
         actor_rollout_ref.actor.use_dynamic_bsz=True \
-        actor_rollout_ref.actor.ppo_max_token_len_per_gpu=$max_model_len \
+        actor_rollout_ref.actor.ppo_max_token_len_per_gpu=$(expr 1 \* $max_model_len) \
         actor_rollout_ref.actor.megatron.use_mbridge=True \
         actor_rollout_ref.actor.megatron.param_offload=True \
         actor_rollout_ref.actor.megatron.optimizer_offload=True \
@@ -151,17 +152,16 @@ if [ "$NODE_RANK" = "0" ]; then
         +actor_rollout_ref.actor.optim.override_optimizer_config.use_precision_aware_optimizer=True \
         actor_rollout_ref.actor.optim.lr=1e-6 \
         actor_rollout_ref.rollout.name=vllm \
-        actor_rollout_ref.rollout.mode="sync" \
         actor_rollout_ref.rollout.n=8 \
         actor_rollout_ref.rollout.gpu_memory_utilization=0.9 \
         actor_rollout_ref.rollout.tensor_model_parallel_size=2 \
-        actor_rollout_ref.rollout.max_num_batched_tokens=$max_model_len \
+        actor_rollout_ref.rollout.max_num_batched_tokens=$(expr 1 \* $max_model_len) \
         actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=1 \
         actor_rollout_ref.rollout.log_prob_use_dynamic_bsz=True \
-        actor_rollout_ref.rollout.log_prob_max_token_len_per_gpu=$max_model_len \
+        actor_rollout_ref.rollout.log_prob_max_token_len_per_gpu=$(expr 1 \* $max_model_len) \
         actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=1 \
         actor_rollout_ref.ref.log_prob_use_dynamic_bsz=True \
-        actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=$max_model_len \
+        actor_rollout_ref.ref.log_prob_max_token_len_per_gpu=$(expr 1 \* $max_model_len) \
         actor_rollout_ref.ref.megatron.param_offload=True \
         trainer.n_gpus_per_node=${NGPUS_PER_NODE} \
         trainer.nnodes=${NNODES} \
@@ -175,7 +175,7 @@ if [ "$NODE_RANK" = "0" ]; then
         trainer.experiment_name=${experiment_name} \
         hydra.run.dir=${experiment_dir}/outputs
 
+    ray stop
+
     echo "finish training"
 fi
-
-ray stop

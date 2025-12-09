@@ -39,11 +39,11 @@ echo "master port: ${MASTER_PORT}"
 echo "number of gpus per node: ${NGPUS_PER_NODE}"
 echo "=============================="
 
-HF_MODEL_PATH="/home/ma-user/work/fengjianming/work/INF-FinDocBench/train/v8_1_8b_dense/model"
+HF_MODEL_PATH="/home/ma-user/work/fengjianming/work/LLMs/Qwen3-8B"
 max_model_len=40960
 max_prompt_length=38912
 max_response_length=$(expr $max_model_len - $max_prompt_length)
-train_path="/home/ma-user/work/fengjianming/work/INF-FinDocBench/train/v8_1_8b_dense_rl/train.parquet"
+train_path="/home/ma-user/work/fengjianming/work/INF-FinDocBench/train/Qwen3-8B_v8_1_full_rl/train.parquet"
 project_name="financial_info_extract"
 reward_fn_path="examples/inf/reward_functions/financial_info_extract.py"
 current_script="$(realpath "$0")"
