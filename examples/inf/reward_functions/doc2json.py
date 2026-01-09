@@ -50,7 +50,7 @@ def truncate_last_incomplete_element(text: str):
     return text, False
 
 
-class DocumentParserReward:
+class Doc2JsonReward:
     def __init__(self, text_weight: float = 0.5, layout_weight: float = 0.5):
         """
         初始化奖励函数
@@ -61,6 +61,16 @@ class DocumentParserReward:
         """
         self.text_weight = text_weight
         self.layout_weight = layout_weight
+
+    def _normalize_items(self, items: List[Dict]) -> List[Dict]:
+        """Ensure every item has a 'text' key (fill with empty string if missing)."""
+        normalized = []
+        for item in items:
+            it = dict(item)
+            if "text" not in it:
+                it["text"] = ""
+            normalized.append(it)
+        return normalized
 
     def calculate_text_similarity_reward(
         self, gt: List[Dict], pred: List[Dict]
@@ -225,6 +235,9 @@ class DocumentParserReward:
         try:
             gt = json.loads(gt_json)
             pred = json.loads(pred_json)
+            # 支持两种格式：带或不带"text"字段，统一填充为空字符串以便后续处理
+            gt = self._normalize_items(gt)
+            pred = self._normalize_items(pred)
             # 计算文本相似度奖励
             text_reward = self.calculate_text_similarity_reward(gt, pred)
 
@@ -266,7 +279,7 @@ if __name__ == "__main__":
     ]
 
     # 创建奖励函数
-    reward_fn = DocumentParserReward(text_weight=0.7, layout_weight=0.3)
+    reward_fn = Doc2JsonReward(text_weight=0.7, layout_weight=0.3)
 
     # 计算奖励
     reward, _, _ = reward_fn(
@@ -283,3 +296,32 @@ if __name__ == "__main__":
     # 测试单个类别的IoU计算
     table_iou = reward_fn.calculate_category_iou(gt_data, pred_data, "table")
     print(f"Table类别的IoU: {table_iou:.4f}")
+
+    # 测试仅bbox/category格式（无"text"字段）
+    gt_data_no_text = [
+        {"bbox": [10, 10, 100, 30], "category": "title"},
+        {
+            "bbox": [10, 40, 200, 100],
+            "category": "paragraph",
+        },
+        {"bbox": [10, 110, 300, 200], "category": "table"},
+        {"bbox": [50, 210, 250, 300], "category": "table"},
+    ]
+
+    pred_data_no_text = [
+        {"bbox": [12, 12, 98, 32], "category": "title"},
+        {
+            "bbox": [15, 42, 195, 105],
+            "category": "paragraph",
+        },
+        {"bbox": [8, 108, 305, 205], "category": "table"},
+        {"bbox": [45, 208, 255, 305], "category": "table"},
+    ]
+
+    reward2, _, _ = reward_fn(
+        json.dumps(gt_data_no_text, ensure_ascii=False),
+        json.dumps(pred_data_no_text, ensure_ascii=False),
+    )
+    print(
+        f"仅bbox/category格式 — 总奖励: {reward2[0]:.4f}, 文本: {reward2[1]:.4f}, 布局: {reward2[2]:.4f}"
+    )
