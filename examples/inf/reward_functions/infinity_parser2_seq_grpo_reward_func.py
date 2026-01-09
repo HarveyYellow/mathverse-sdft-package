@@ -17,25 +17,13 @@ import sys
 import os
 import json
 from typing import List, Tuple, Dict
+
 # 添加当前目录到 Python 路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from infinity_parser2_seq_grpo_reward_base import extract_json_content, truncate_last_incomplete_element, DocumentParserReward
-
-
-def process_single_result(pred, ground_truth, reward_calculator):
-        """处理单个结果的函数"""
-        res_content = extract_json_content(pred)
-        new_res, trunc = truncate_last_incomplete_element(res_content)
-        gt = json.loads(extract_json_content(ground_truth))
-        try:
-            res_parsed = json.loads(new_res)
-            reward = reward_calculator(gt, res_parsed)
-            return reward, trunc, None
-        except Exception as e:
-            return 0, trunc, (e, new_res)
+from doc2json import DocumentParserReward
 
 
 def compute_score(
@@ -46,18 +34,16 @@ def compute_score(
     format_score: float = 0.3,
 ) -> dict:
     reward_calculator = DocumentParserReward(text_weight=0.7, layout_weight=0.3)
-    reward, _, _ = process_single_result(solution_str, ground_truth, reward_calculator)
-    text_reward, layout_reward = 0, 0
+    reward, _, _ = reward_calculator(solution_str, ground_truth)
+    total_reward, text_reward, layout_reward = reward
     if reward == 0:
         format_reward = 0
     else:
         format_reward = 1
-        text_reward = reward[1]
-        layout_reward = reward[2]
     result = {
-        "score": 0.7 * text_reward + 0.3 * layout_reward,
+        "score": total_reward,
         "format": format_reward,
         "text_reward": text_reward,
-        "layout_reward": layout_reward
+        "layout_reward": layout_reward,
     }
     return result
