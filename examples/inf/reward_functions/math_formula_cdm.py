@@ -244,8 +244,8 @@ def extract_valid_content(text):
 
     patterns = [
         r"```latex\n(.*?)\n```",
-        r"$$(.*?)$$",
-        r"$(.*?)$",
+        r"\$\$(.*?)\$\$",
+        r"\$(.*?)\$",
         r"\[(.*?)\]",
         r"\((.*?)\)",
     ]
@@ -263,7 +263,7 @@ def cdm_reward(solution_str: str, ground_truth: str) -> float:
         solution_str = extract_valid_content(solution_str)
         ground_truth = extract_valid_content(ground_truth)
 
-        cdm_obj = CDM(output_root=os.path.join(cur_path, "tmp"))
+        cdm_obj = CDM(output_root=os.path.join(cur_path, "cdm_tmp"))
         reward = cdm_obj.evaluate(ground_truth, solution_str, str(uuid.uuid4()))[
             "F1_score"
         ]
