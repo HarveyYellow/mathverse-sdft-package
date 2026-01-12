@@ -32,9 +32,9 @@ def extract_valid_content(text):
     return text
 
 
-def similarity(gt: str, pred: str):
-    edit_distance = Levenshtein.distance(gt, pred)
-    max_len = max(len(gt), len(pred))
+def similarity(pred: str, gt: str):
+    edit_distance = Levenshtein.distance(pred, gt)
+    max_len = max(len(pred), len(gt))
     normalized_distance = edit_distance / max_len if max_len > 0 else 1
     return 1.0 - normalized_distance
 
@@ -49,7 +49,7 @@ def accuracy_reward(solution_str: str, ground_truth: str) -> float:
         solution_str = re.sub(r"\s*(<|>|/)\s*", r"\1", solution_str)
         ground_truth = re.sub(r"\s*(<|>|/)\s*", r"\1", ground_truth)
 
-        reward = similarity(ground_truth, solution_str)
+        reward = similarity(solution_str, ground_truth)
         return reward
     except Exception as e:
         return 0.0

@@ -17,54 +17,33 @@ from typing import List, Dict, Tuple
 import Levenshtein
 
 
-def levenshtein_distance(s1, s2):
-    if len(s1) > len(s2):
-        s1, s2 = s2, s1
-
-    distances = range(len(s1) + 1)
-    for i2, c2 in enumerate(s2):
-        distances_ = [i2 + 1]
-        for i1, c1 in enumerate(s1):
-            if c1 == c2:
-                distances_.append(distances[i1])
-            else:
-                distances_.append(
-                    1 + min((distances[i1], distances[i1 + 1], distances_[-1]))
-                )
-        distances = distances_
-    return distances[-1]
-
-
 def anls(
+    pred,
     references,
-    predictions,
     thresh_hold=0.5,
 ):
     """https://github.com/QwenLM/Qwen-VL/blob/master/eval_mm/infographicsvqa_eval.py"""
     values = []
-    # Unwrap predictions if it's a nested list
-    pred = predictions[0] if isinstance(predictions[0], str) else predictions[0][0]
 
     for answer in references:
         # preprocess both the answers - gt and prediction
-        gt_answer = " ".join(answer.strip().lower().split())
         det_answer = " ".join(pred.strip().lower().split())
+        gt_answer = " ".join(answer.strip().lower().split())
 
-        # dist = levenshtein_distance(gt_answer, det_answer)
-        dist = Levenshtein.distance(gt_answer, det_answer)
-        length = max(len(answer.upper()), len(pred.upper()))
+        dist = Levenshtein.distance(det_answer, gt_answer)
+        length = max(len(pred.upper()), len(answer.upper()))
         values.append(0.0 if length == 0 else float(dist) / float(length))
 
     question_result = 1 - min(values)
 
     if question_result < thresh_hold:
         question_result = 0
-    return {"anls": question_result}
+    return question_result
 
 
 def anls_reward(solution_str: str, ground_truth: List[str]) -> float:
     try:
-        reward = anls_reward(ground_truth, [solution_str])
-        return reward["anls"]
+        reward = anls_reward(solution_str, ground_truth)
+        return reward
     except Exception as e:
         return 0.0

@@ -38,9 +38,8 @@ def bleu_reward(solution_str: str, ground_truth: str) -> float:
         solution_str = extract_valid_content(solution_str)
         ground_truth = extract_valid_content(ground_truth)
 
-        # remove redundant spaces
-        solution_str = re.sub(r"\s*(<|>|/)\s*", r"\1", solution_str)
-        ground_truth = re.sub(r"\s*(<|>|/)\s*", r"\1", ground_truth)
+        solution_str = solution_str.strip()
+        ground_truth = ground_truth.strip()
 
         reward = sacrebleu.corpus_bleu(
             [solution_str], [[ground_truth]], lowercase=True

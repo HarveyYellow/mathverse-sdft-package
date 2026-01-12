@@ -241,10 +241,6 @@ def scrm_reward(solution_str: str, ground_truth: str) -> float:
         solution_str = extract_valid_content(solution_str)
         ground_truth = extract_valid_content(ground_truth)
 
-        # remove redundant spaces
-        solution_str = re.sub(r"\s*(<|>|/)\s*", r"\1", solution_str)
-        ground_truth = re.sub(r"\s*(<|>|/)\s*", r"\1", ground_truth)
-
         # load json
         pred_json = json.loads(solution_str)
         gt_json = json.loads(ground_truth)

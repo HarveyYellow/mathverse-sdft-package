@@ -11,7 +11,7 @@ from examples.inf.reward_functions.doc2json import Doc2JsonReward
 from examples.inf.reward_functions.eds import accuracy_reward as eds_reward
 from examples.inf.reward_functions.teds import TEDS
 from examples.inf.reward_functions.teds import teds_reward
-from examples.inf.reward_functions.cdm import cdm_reward
+from examples.inf.reward_functions.math_formula_cdm import cdm_reward
 from examples.inf.reward_functions.bleu import bleu_reward
 from examples.inf.reward_functions.rmsf1 import rmsf1_reward
 from examples.inf.reward_functions.scrm import scrm_reward

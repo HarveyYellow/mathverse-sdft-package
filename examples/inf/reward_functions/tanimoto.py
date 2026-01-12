@@ -16,6 +16,7 @@ import re
 from typing import List, Dict, Tuple
 from rdkit import Chem
 from rdkit import DataStructs
+from rdkit import RDLogger
 
 # Disable RDKit logging to prevent console spam from invalid SMILES or dummy atoms
 RDLogger.DisableLog("rdApp.*")
@@ -167,10 +168,6 @@ def tanimoto_reward(solution_str: str, ground_truth: str) -> float:
         # extract valid content
         solution_str = extract_valid_content(solution_str)
         ground_truth = extract_valid_content(ground_truth)
-
-        # remove redundant spaces
-        solution_str = re.sub(r"\s*(<|>|/)\s*", r"\1", solution_str)
-        ground_truth = re.sub(r"\s*(<|>|/)\s*", r"\1", ground_truth)
 
         reward = tanimoto_similarity(solution_str, ground_truth)
         return reward

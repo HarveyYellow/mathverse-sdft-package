@@ -32,8 +32,8 @@ class TestComputeScoreRealCases(unittest.TestCase):
         self.assertAlmostEqual(res["score"], 1.0, places=6)
 
         # small differing text -> score in [0,1]
-        gt2 = json.dumps([{"bbox": [0, 0, 1, 1], "category": "a", "text": "hello"}])
-        sol2 = json.dumps([{"bbox": [0, 0, 1, 1], "category": "a", "text": "hallo"}])
+        gt2 = json.dumps([{"bbox": [0, 0, 1, 1], "category": "text", "text": "hello"}])
+        sol2 = json.dumps([{"bbox": [0, 0, 1, 1], "category": "text", "text": "hallo"}])
         res2 = self.mod.compute_score(sol2, gt2, data_source="doc2json")
         self.assertIsInstance(res2["score"], float)
         self.assertGreaterEqual(res2["score"], 0.0)
@@ -44,7 +44,7 @@ class TestComputeScoreRealCases(unittest.TestCase):
         cases = [
             ("doc2md", "simple text", "simple text"),
             ("text2md", "A", "B"),
-            ("chart2code", "code()", "code()"),
+            ("chart2code", "```python\ncode()\n```", "```python\ncode()\n```"),
         ]
         for ds, sol, gt in cases:
             with self.subTest(data_source=ds):
@@ -61,13 +61,13 @@ class TestComputeScoreRealCases(unittest.TestCase):
 
     def test_table2_real_cases(self):
         # simple identical table html should give same teds_reward
-        table_html = "<table><tr><td>1</td></tr></table>"
+        table_html = "<table><tr><td>1</td><td>1</td></tr><tr><td>1</td><td>1</td></tr></table>"
         direct = self.mod.teds_reward(table_html, table_html)
         res = self.mod.compute_score(table_html, table_html, data_source="table2html")
         self.assertEqual(res["score"], direct)
         # second case: different content
-        direct2 = self.mod.teds_reward("<table></table>", table_html)
-        res2 = self.mod.compute_score("<table></table>", table_html, data_source="table2md")
+        direct2 = self.mod.teds_reward("| 1 | 1 |\n| --- | --- |\n| 1 | 1 |", table_html)
+        res2 = self.mod.compute_score("| 1 | 1 |\n| --- | --- |\n| 1 | 1 |", table_html, data_source="table2md")
         self.assertEqual(res2["score"], direct2)
 
     def test_formula_and_text_metrics(self):
@@ -85,16 +85,19 @@ class TestComputeScoreRealCases(unittest.TestCase):
 
     def test_other_metric_branches(self):
         # chart2table -> rmsf1_reward
-        a, b = "pred", "pred"
+        sol = "| 1 | 1 |\n| --- | --- |\n| 1 | 1 |"
+        gt = "| 1 | 1 |\n| --- | --- |\n| 1 | 1 |"
         self.assertEqual(
-            self.mod.compute_score(a, b, data_source="chart2table")["score"],
-            self.mod.rmsf1_reward(a, b),
+            self.mod.compute_score(sol, gt, data_source="chart2table")["score"],
+            self.mod.rmsf1_reward(sol, gt),
         )
 
         # chart2json -> scrm_reward
+        sol = json.dumps({"value": "123"})
+        gt = json.dumps({"value": "123"})
         self.assertEqual(
-            self.mod.compute_score("x", "x", data_source="chart2json")["score"],
-            self.mod.scrm_reward("x", "x"),
+            self.mod.compute_score(sol, gt, data_source="chart2json")["score"],
+            self.mod.scrm_reward(sol, gt),
         )
 
         # chem2smiles -> tanimoto_reward (may return 0.0 if RDKit missing or invalid SMILES)

@@ -36,46 +36,6 @@ def extract_valid_content(text):
     return text
 
 
-def chart2table_process_results(doc, results):
-    """Process results for a single chart2table sample."""
-    pred_table = results[0] if results else ""
-    target = doc["conversations"][-1]["value"]
-
-    # 后处理步骤1：去除前缀 - 找到第一个 | 符号（表格开始）
-    table_start_index = pred_table.find("|")
-    if table_start_index != -1:
-        pred_table = pred_table[table_start_index:]
-
-    # 后处理步骤2：去除后缀 - 只保留包含 | 的行（表格行）
-    # 遇到连续的非表格行（不含 |）就停止
-    lines = pred_table.split("\n")
-    table_lines = []
-    empty_line_count = 0
-
-    for line in lines:
-        # 如果这一行包含 |，认为是表格的一部分
-        if "|" in line:
-            table_lines.append(line)
-            empty_line_count = 0  # 重置空行计数
-        # 如果是空行
-        elif not line.strip():
-            # 如果已经有表格内容，保留一些空行（可能是表格内的分隔）
-            if table_lines:
-                empty_line_count += 1
-                if empty_line_count <= 2:  # 最多保留2个连续空行
-                    table_lines.append(line)
-                else:
-                    break  # 太多空行，表格结束
-        # 非空且不含 | 的行，表格结束
-        else:
-            if table_lines:  # 如果已经有表格内容，就停止
-                break
-
-    pred_table = "\n".join(table_lines).strip()
-
-    return {"datapoints_f1": {"prediction": pred_table, "target": target}}
-
-
 def _anls_metric(s1, s2, theta=0.5):
     """Computes average normalized levenshtein similarity (ANLS)."""
     if not s1 and not s2:
@@ -251,10 +211,6 @@ def rmsf1_reward(solution_str: str, ground_truth: str) -> float:
         # extract valid content
         solution_str = extract_valid_content(solution_str)
         ground_truth = extract_valid_content(ground_truth)
-
-        # remove redundant spaces
-        solution_str = re.sub(r"\s*(<|>|/)\s*", r"\1", solution_str)
-        ground_truth = re.sub(r"\s*(<|>|/)\s*", r"\1", ground_truth)
 
         # calculate reward
         pred = solution_str
