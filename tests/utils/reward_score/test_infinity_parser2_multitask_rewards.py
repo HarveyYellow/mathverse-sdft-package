@@ -23,7 +23,7 @@ class TestComputeScoreRealCases(unittest.TestCase):
     def setUp(self) -> None:
         self.mod = load_reward_module()
 
-    def test_doc2json_branch_real_cases(self):
+    def test_doc2json_branch(self):
         # identical empty lists -> total reward should be 1.0
         gt = json.dumps([])
         sol = json.dumps([])
@@ -39,7 +39,7 @@ class TestComputeScoreRealCases(unittest.TestCase):
         self.assertGreaterEqual(res2["score"], 0.0)
         self.assertLessEqual(res2["score"], 1.0)
 
-    def test_eds_group_real_cases(self):
+    def test_eds_group(self):
         # doc2md / text2md / chart2code should match eds_reward result
         cases = [
             ("doc2md", "simple text", "simple text"),
@@ -52,14 +52,14 @@ class TestComputeScoreRealCases(unittest.TestCase):
                 res = self.mod.compute_score(sol, gt, data_source=ds)
                 self.assertEqual(res["score"], direct)
 
-    def test_layout_analysis_real_cases(self):
+    def test_layout_analysis(self):
         # layout only: identical empty lists -> mIOU == 1.0 -> total 1.0
         gt = json.dumps([])
         sol = json.dumps([])
         res = self.mod.compute_score(sol, gt, data_source="layout_analysis")
         self.assertAlmostEqual(res["score"], 1.0, places=6)
 
-    def test_table2_real_cases(self):
+    def test_table(self):
         # simple identical table html should give same teds_reward
         table_html = "<table><tr><td>1</td><td>1</td></tr><tr><td>1</td><td>1</td></tr></table>"
         direct = self.mod.teds_reward(table_html, table_html)
@@ -70,20 +70,20 @@ class TestComputeScoreRealCases(unittest.TestCase):
         res2 = self.mod.compute_score("| 1 | 1 |\n| --- | --- |\n| 1 | 1 |", table_html, data_source="table2md")
         self.assertEqual(res2["score"], direct2)
 
-    def test_formula_and_text_metrics(self):
+    def test_formula(self):
         # formula2latex -> cdm_reward
         sol = "$x=1$"
         gt = "$x=1$"
         res = self.mod.compute_score(sol, gt, data_source="formula2latex")
         self.assertEqual(res["score"], self.mod.cdm_reward(sol, gt))
 
+    def test_chart(self):
         # chart2text -> bleu_reward (sacrebleu score)
         sol2 = "Hello world"
         gt2 = "Hello world"
         res2 = self.mod.compute_score(sol2, gt2, data_source="chart2text")
         self.assertEqual(res2["score"], self.mod.bleu_reward(sol2, gt2))
 
-    def test_other_metric_branches(self):
         # chart2table -> rmsf1_reward
         sol = "| 1 | 1 |\n| --- | --- |\n| 1 | 1 |"
         gt = "| 1 | 1 |\n| --- | --- |\n| 1 | 1 |"
@@ -100,12 +100,14 @@ class TestComputeScoreRealCases(unittest.TestCase):
             self.mod.scrm_reward(sol, gt),
         )
 
+    def test_chem2smiles(self):
         # chem2smiles -> tanimoto_reward (may return 0.0 if RDKit missing or invalid SMILES)
         self.assertEqual(
             self.mod.compute_score("CCO", "CCO", data_source="chem2smiles")["score"],
             self.mod.tanimoto_reward("CCO", "CCO"),
         )
 
+    def test_docvqa(self):
         # docvqa -> anls_reward: this module has a different helper; try to call compute_score
         try:
             res = self.mod.compute_score("yes", ["yes"], data_source="docvqa")
@@ -124,5 +126,3 @@ class TestComputeScoreRealCases(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
