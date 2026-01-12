@@ -244,6 +244,10 @@ def extract_valid_content(text):
 
     patterns = [
         r"```latex\n(.*?)\n```",
+        r"$$(.*?)$$",
+        r"$(.*?)$",
+        r"\[(.*?)\]",
+        r"\((.*?)\)",
     ]
     for pattern in patterns:
         matches = re.search(pattern, text, re.DOTALL)
