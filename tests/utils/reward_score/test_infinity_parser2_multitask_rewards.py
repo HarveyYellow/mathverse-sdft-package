@@ -36,8 +36,8 @@ class TestComputeScoreRealCases(unittest.TestCase):
         sol2 = json.dumps([{"bbox": [0, 0, 1, 1], "category": "text", "text": "hallo"}])
         res2 = self.mod.compute_score(sol2, gt2, data_source="doc2json")
         self.assertIsInstance(res2["score"], float)
-        self.assertGreaterEqual(res2["score"], 0.0)
-        self.assertLessEqual(res2["score"], 1.0)
+        self.assertGreater(res2["score"], 0.0)
+        self.assertLess(res2["score"], 1.0)
 
     def test_eds_group(self):
         # doc2md / text2md / chart2code should match eds_reward result
@@ -72,9 +72,9 @@ class TestComputeScoreRealCases(unittest.TestCase):
         gt = json.dumps(gt_items)
         sol = json.dumps(sol_items)
         # Intersection area = 1 (1x1), union area = 4 (2x2) => IoU = 1/4 = 0.25
-        expected_layout = 1.0 / 4.0
+        expected = 1.0 / 4.0
         res = self.mod.compute_score(sol, gt, data_source="layout_analysis")
-        self.assertAlmostEqual(res["score"], expected_layout, places=6)
+        self.assertAlmostEqual(res["score"], expected, places=6)
 
     def test_table(self):
         # simple identical table html should give same teds_reward
@@ -82,11 +82,14 @@ class TestComputeScoreRealCases(unittest.TestCase):
         direct = self.mod.teds_reward(table_html, table_html)
         res = self.mod.compute_score(table_html, table_html, data_source="table2html")
         self.assertEqual(res["score"], direct)
+        self.assertEqual(res["score"], 1.0)
 
         # second case: different content
-        direct2 = self.mod.teds_reward("| 1 | 1 |\n| --- | --- |\n| 1 | 1 |", table_html)
-        res2 = self.mod.compute_score("| 1 | 1 |\n| --- | --- |\n| 1 | 1 |", table_html, data_source="table2md")
-        self.assertEqual(res2["score"], direct2)
+        table_md = "| 1 | 1 |\n| --- | --- |\n| 1 | 1 |"
+        direct = self.mod.teds_reward(table_md, table_html)
+        res = self.mod.compute_score(table_md, table_html, data_source="table2md")
+        self.assertEqual(res["score"], direct)
+        self.assertEqual(res["score"], 1.0)
 
         # TEDS returns 0.0 if prediction is empty while ground truth has a table
         table_html = "<table><tr><td>1</td></tr></table>"
@@ -103,11 +106,18 @@ class TestComputeScoreRealCases(unittest.TestCase):
 
     def test_chart(self):
         # chart2text -> bleu_reward (sacrebleu score)
-        sol = "Hello world"
-        gt = "Hello world"
+        sol = "Hello world, Hello world"
+        gt = "Hello world, Hello world"
         res = self.mod.compute_score(sol, gt, data_source="chart2text")
         self.assertEqual(res["score"], self.mod.bleu_reward(sol, gt))
         self.assertAlmostEqual(res["score"], 100.0, places=6)
+
+        sol = "The cat is sitting on the mat."
+        gt = "The cat sits on the mat."
+        res = self.mod.compute_score(sol, gt, data_source="chart2text")
+        self.assertEqual(res["score"], self.mod.bleu_reward(sol, gt))
+        self.assertGreater(res["score"], 0)
+        self.assertLess(res["score"], 50)
 
         # chart2table -> rmsf1_reward
         sol = "| 1 | 1 |\n| --- | --- |\n| 1 | 1 |"
@@ -117,7 +127,7 @@ class TestComputeScoreRealCases(unittest.TestCase):
             res["score"],
             self.mod.rmsf1_reward(sol, gt),
         )
-        self.assertEqual(res["score"], 1.0, places=6)
+        self.assertEqual(res["score"], 1.0)
 
         # chart2json -> scrm_reward
         sol = json.dumps({"values": {"k": 1}})
@@ -127,7 +137,7 @@ class TestComputeScoreRealCases(unittest.TestCase):
             res["score"],
             self.mod.scrm_reward(sol, gt),
         )
-        self.assertEqual(res["score"], 1.0, places=6)
+        self.assertAlmostEqual(res["score"], 1.0, places=6)
 
     def test_chem2smiles(self):
         # chem2smiles -> tanimoto_reward (may return 0.0 if RDKit missing or invalid SMILES)
@@ -136,7 +146,7 @@ class TestComputeScoreRealCases(unittest.TestCase):
             res["score"],
             self.mod.tanimoto_reward("CCO", "CCO"),
         )
-        self.assertIn(res["score"], (0.0, 1.0))
+        self.assertEqual(res["score"], 1.0)
 
     def test_docvqa(self):
         # docvqa -> anls_reward: this module has a different helper; try to call compute_score

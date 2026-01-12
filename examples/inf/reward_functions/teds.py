@@ -222,6 +222,23 @@ def convert_markdown2html(markdown_str):
     return html_str
 
 
+def normalize_head_body(html_str: str) -> str:
+    """
+    Remove <thead> and <tbody> tags and convert <th> to <td> in the given HTML string.
+    Preserves attributes on <th> when converting to <td>.
+    """
+    if not html_str:
+        return html_str
+    # remove thead and tbody tags (opening and closing, with any attributes)
+    html_str = re.sub(r"</?thead[^>]*>", "", html_str, flags=re.IGNORECASE | re.DOTALL)
+    html_str = re.sub(r"</?tbody[^>]*>", "", html_str, flags=re.IGNORECASE | re.DOTALL)
+    # convert opening th tags to td, preserving attributes
+    html_str = re.sub(r"<\s*th([^>]*)>", r"<td\1>", html_str, flags=re.IGNORECASE)
+    # convert closing th tags to td
+    html_str = re.sub(r"</\s*th\s*>", "</td>", html_str, flags=re.IGNORECASE)
+    return html_str
+
+
 def teds_reward(solution_str: str, ground_truth: str) -> float:
     try:
         # extract valid content
@@ -233,6 +250,10 @@ def teds_reward(solution_str: str, ground_truth: str) -> float:
             solution_str = convert_markdown2html(solution_str)
         if "<table>" not in ground_truth:
             ground_truth = convert_markdown2html(ground_truth)
+
+        # normalize table head/body and th cells
+        solution_str = normalize_head_body(solution_str)
+        ground_truth = normalize_head_body(ground_truth)
 
         teds_obj = TEDS(structure_only=False)
         reward = teds_obj.evaluate(solution_str, ground_truth)

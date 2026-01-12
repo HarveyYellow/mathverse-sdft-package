@@ -213,6 +213,8 @@ def rmsf1_reward(solution_str: str, ground_truth: str) -> float:
         # calculate reward
         pred = solution_str
         target_list = [ground_truth]
+        text_theta = 0.5
+        number_theta = 0.1
         all_metrics = []
         for transposed in [True, False]:
             pred_table = _parse_table(pred, transposed=transposed)
