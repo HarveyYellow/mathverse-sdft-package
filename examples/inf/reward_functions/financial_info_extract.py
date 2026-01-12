@@ -116,7 +116,7 @@ class MetricsCalculator:
     def __init__(self, config: Dict = None):
         self.config = config or {}
 
-        #print(f"self.config: {self.config}")
+        # print(f"self.config: {self.config}")
         if self.config.get("data_type", "in_domain") == "in_domain":
             self.attr_func_dict = {}
         else:
@@ -441,15 +441,23 @@ def extract_data(response):
 
 
 def compute_score(solution_str, ground_truth, **kwargs):
-    calculator = MetricsCalculator({"attr_names": ["value", "unit", "currency", "cutoff_date"]})
+    calculator = MetricsCalculator(
+        {"attr_names": ["value", "unit", "currency", "cutoff_date"]}
+    )
     ground_truth = extract_data(ground_truth)
     try:
         solution = extract_data(solution_str)
         data_info = {"id": 1}
-        result = calculator.compute_precision_recall([ground_truth], [solution], [data_info], "overall", "overall")[0]
+        result = calculator.compute_precision_recall(
+            [ground_truth], [solution], [data_info], "overall", "overall"
+        )[0]
         reward = result["overall"]["f1"]
         format_reward = 1
     except:
         reward = 0
         format_reward = 0
-    return {"score": reward + format_reward, "reward": reward, "format_reward": format_reward}
+    return {
+        "score": reward + format_reward,
+        "reward": reward,
+        "format_reward": format_reward,
+    }
