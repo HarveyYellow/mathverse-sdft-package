@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import markdown
 import re
 import distance
 from apted import APTED, Config
@@ -186,7 +187,6 @@ def extract_valid_content(text):
     patterns = [
         r"```markdown\n(.*?)\n```",
         r"```html\n(.*?)\n```",
-        r"```latex\n(.*?)\n```",
     ]
     for pattern in patterns:
         matches = re.search(pattern, text, re.DOTALL)
@@ -196,15 +196,43 @@ def extract_valid_content(text):
     return text
 
 
+def replace_inner_newlines_with_space(md: str) -> str:
+    """
+    替换 markdown 表格 **单元格中的换行符** 为空格，
+    保留每一行之间的 \n，使表格结构不受破坏。
+    """
+    if "|\n|" not in md:
+        return md
+    md = md.strip()
+    lines = md.split("|\n|")
+    fixed_lines = []
+
+    for line in lines:
+        line = line.replace("\n", " ")
+        fixed_lines.append(line)
+
+    return '|\n|'.join(fixed_lines)
+
+
+def convert_markdown2html(markdown_str):
+    extensions = ["markdown.extensions.tables"]
+    html_str = markdown.markdown(replace_inner_newlines_with_space(markdown_str), extensions=extensions)
+    if "<html><body>" not in html_str:
+        html_str = "<html><body>{}</body></html>".format(html_str)
+    return html_str
+
+
 def teds_reward(solution_str: str, ground_truth: str) -> float:
     try:
         # extract valid content
         solution_str = extract_valid_content(solution_str)
         ground_truth = extract_valid_content(ground_truth)
 
-        # remove redundant spaces
-        solution_str = re.sub(r"\s*(<|>|/)\s*", r"\1", solution_str)
-        ground_truth = re.sub(r"\s*(<|>|/)\s*", r"\1", ground_truth)
+        # convert md table to html table
+        if "<table>" not in solution_str:
+            solution_str = convert_markdown2html(solution_str)
+        if "<table>" not in ground_truth:
+            ground_truth = convert_markdown2html(ground_truth)
 
         teds_obj = TEDS(structure_only=False)
         reward = teds_obj.evaluate(solution_str, ground_truth)

@@ -79,8 +79,8 @@ class Doc2JsonReward:
         计算文本相似度奖励
 
         Args:
-            pred: 模型预测数据，格式同gt
-            gt: ground truth数据，格式为[{"bbox": [...], "category": "...", "text": "..."}, ...]
+            pred: 模型预测数据，格式为[{"bbox": [...], "category": "...", "text": "..."}, ...]
+            gt: ground truth数据，格式同pred
 
         Returns:
             文本相似度奖励值

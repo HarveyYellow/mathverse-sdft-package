@@ -17,27 +17,8 @@ from typing import List, Dict, Tuple
 import sacrebleu
 
 
-def extract_valid_content(text):
-
-    patterns = [
-        r"```markdown\n(.*?)\n```",
-        r"```html\n(.*?)\n```",
-        r"```latex\n(.*?)\n```",
-    ]
-    for pattern in patterns:
-        matches = re.search(pattern, text, re.DOTALL)
-        if matches:
-            text = matches.group(1)
-
-    return text
-
-
 def bleu_reward(solution_str: str, ground_truth: str) -> float:
     try:
-        # extract valid content
-        solution_str = extract_valid_content(solution_str)
-        ground_truth = extract_valid_content(ground_truth)
-
         solution_str = solution_str.strip()
         ground_truth = ground_truth.strip()
 

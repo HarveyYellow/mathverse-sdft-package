@@ -25,9 +25,7 @@ RDLogger.DisableLog("rdApp.*")
 def extract_valid_content(text):
 
     patterns = [
-        r"```markdown\n(.*?)\n```",
-        r"```html\n(.*?)\n```",
-        r"```latex\n(.*?)\n```",
+        r"<smiles>(.*?)</smiles>",
     ]
     for pattern in patterns:
         matches = re.search(pattern, text, re.DOTALL)

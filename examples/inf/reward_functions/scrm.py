@@ -22,9 +22,6 @@ import numpy as np
 def extract_valid_content(text):
 
     patterns = [
-        r"```markdown\n(.*?)\n```",
-        r"```html\n(.*?)\n```",
-        r"```latex\n(.*?)\n```",
         r"```json\n(.*?)\n```",
     ]
     for pattern in patterns:

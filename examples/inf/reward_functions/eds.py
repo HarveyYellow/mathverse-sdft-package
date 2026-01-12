@@ -23,6 +23,8 @@ def extract_valid_content(text):
         r"```markdown\n(.*?)\n```",
         r"```html\n(.*?)\n```",
         r"```latex\n(.*?)\n```",
+        r"```json\n(.*?)\n```",
+        r"```python\n(.*?)\n```",
     ]
     for pattern in patterns:
         matches = re.search(pattern, text, re.DOTALL)
@@ -44,10 +46,6 @@ def accuracy_reward(solution_str: str, ground_truth: str) -> float:
         # extract valid content
         solution_str = extract_valid_content(solution_str)
         ground_truth = extract_valid_content(ground_truth)
-
-        # remove redundant spaces
-        solution_str = re.sub(r"\s*(<|>|/)\s*", r"\1", solution_str)
-        ground_truth = re.sub(r"\s*(<|>|/)\s*", r"\1", ground_truth)
 
         reward = similarity(solution_str, ground_truth)
         return reward

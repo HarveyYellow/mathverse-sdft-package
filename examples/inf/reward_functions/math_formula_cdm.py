@@ -26,6 +26,8 @@ from PIL import Image, ImageDraw
 from skimage.measure import ransac
 import traceback
 
+cur_path = os.path.dirname(os.path.abspath(__file__))
+
 sys.path.insert(0, "/home/ma-user/work/data_mllm/public_codes")
 from cdm.modules.latex2bbox_color import latex2bbox_color
 from cdm.modules.visual_matcher import HungarianMatcher, SimpleAffineTransform
@@ -241,8 +243,6 @@ class CDM:
 def extract_valid_content(text):
 
     patterns = [
-        r"```markdown\n(.*?)\n```",
-        r"```html\n(.*?)\n```",
         r"```latex\n(.*?)\n```",
     ]
     for pattern in patterns:
@@ -259,7 +259,7 @@ def cdm_reward(solution_str: str, ground_truth: str) -> float:
         solution_str = extract_valid_content(solution_str)
         ground_truth = extract_valid_content(ground_truth)
 
-        cdm_obj = CDM(output_root="./tmp")
+        cdm_obj = CDM(output_root=os.path.join(cur_path, "tmp"))
         reward = cdm_obj.evaluate(ground_truth, solution_str, str(uuid.uuid4()))[
             "F1_score"
         ]

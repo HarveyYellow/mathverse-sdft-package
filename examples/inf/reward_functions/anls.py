@@ -43,7 +43,7 @@ def anls(
 
 def anls_reward(solution_str: str, ground_truth: List[str]) -> float:
     try:
-        reward = anls_reward(solution_str, ground_truth)
+        reward = anls(solution_str, ground_truth)
         return reward
     except Exception as e:
         return 0.0
