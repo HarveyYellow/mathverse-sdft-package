@@ -80,7 +80,7 @@ class TestDocDataset(unittest.TestCase):
             "max_response_length": 4096,
             "norm_bbox": "norm1000",
             "prompt_key": "conversations",
-            "shuffle": False,
+            "shuffle": True,
         })
 
     def test_load_single_data_files(self):
@@ -102,6 +102,42 @@ class TestDocDataset(unittest.TestCase):
         self.assertTrue("reward_model" in doc_dataset[0])
         self.assertEqual(doc_dataset[0]["reward_model"]["style"], "rule")
         self.assertTrue("ground_truth" in doc_dataset[0]["reward_model"])
+
+        data_files = "/home/ma-user/work/data_mllm/new_datasets/swift_merged_datasets/version_v1.8/train_v1.8_sample_5pct.jsonl"
+        doc_dataset = DocDataset(
+            data_files=data_files,
+            tokenizer=self.tokenizer,
+            processor=self.processor,
+            config=self.cfg,
+            max_samples=1000,
+        )
+        self.assertEqual(len(doc_dataset), 1000)
+        self.assertTrue("input_ids" in doc_dataset[0])
+        self.assertTrue("attention_mask" in doc_dataset[0])
+        self.assertTrue("position_ids" in doc_dataset[0])
+        self.assertTrue("raw_prompt_ids" in doc_dataset[0])
+        self.assertTrue("data_source" in doc_dataset[0])
+        self.assertTrue("reward_model" in doc_dataset[0])
+        self.assertEqual(doc_dataset[0]["reward_model"]["style"], "rule")
+        self.assertTrue("ground_truth" in doc_dataset[0]["reward_model"])
+        data_sources = {item["data_source"] for item in doc_dataset}
+        print(f"data_sources: {data_sources}")
+        all_data_sources = {
+            "doc2json",
+            "doc2md",
+            "text2md",
+            "chart2code",
+            "layout_analysis",
+            "table2html",
+            "table2md",
+            "formula2latex",
+            "chart2text",
+            "chart2table",
+            "chart2json",
+            "chem2smiles",
+            "docvqa"
+        }
+        self.assertTrue(data_sources.issubset(all_data_sources))
 
     def test_load_multiple_data_files(self):
         """Test loading multiple data files."""
