@@ -111,7 +111,7 @@ if [ "$NODE_RANK" = "0" ]; then
     script_basename=$(basename "$current_script")
     project_name="infinity_parser2"
     experiment_name="${script_basename%.*}"
-    reward_fn_path="examples/inf/reward_functions/infinity_parser2_multitask_rewards.py"
+    reward_fn_path="examples/inf/reward_functions/infinity_parser2_multitask_rewards_v1.py"
     experiment_dir="checkpoints/${project_name}/${experiment_name}"
 
     sudo mkdir -p ${experiment_dir}
@@ -161,7 +161,7 @@ if [ "$NODE_RANK" = "0" ]; then
         actor_rollout_ref.rollout.name=$ENGINE \
         +actor_rollout_ref.rollout.engine_kwargs.vllm.disable_mm_preprocessor_cache=True \
         actor_rollout_ref.rollout.gpu_memory_utilization=0.7 \
-        actor_rollout_ref.rollout.mode="sync" \
+        actor_rollout_ref.rollout.mode="async" \
         actor_rollout_ref.rollout.n=8 \
         actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=1 \
         actor_rollout_ref.actor.megatron.use_mbridge=True \

@@ -4,19 +4,36 @@ from mailbox import NotEmptyError
 import re
 from typing import List, Dict, Tuple
 
-cur_path = os.path.dirname(os.path.abspath(__file__))
-sys.path.append("{}/../../..".format(cur_path))
+try:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, "{}/../../..".format(current_dir))
 
-from examples.inf.reward_functions.doc2json import Doc2JsonReward
-from examples.inf.reward_functions.eds import accuracy_reward as eds_reward
-from examples.inf.reward_functions.teds import TEDS
-from examples.inf.reward_functions.teds import teds_reward
-from examples.inf.reward_functions.math_formula_cdm import cdm_reward
-from examples.inf.reward_functions.bleu import bleu_reward
-from examples.inf.reward_functions.rmsf1 import rmsf1_reward
-from examples.inf.reward_functions.scrm import scrm_reward
-from examples.inf.reward_functions.tanimoto import tanimoto_reward
-from examples.inf.reward_functions.anls import anls_reward
+    from examples.inf.reward_functions.doc2json import Doc2JsonReward
+    from examples.inf.reward_functions.eds import accuracy_reward as eds_reward
+    from examples.inf.reward_functions.teds import TEDS
+    from examples.inf.reward_functions.teds import teds_reward
+    from examples.inf.reward_functions.math_formula_cdm import cdm_reward
+    from examples.inf.reward_functions.bleu import bleu_reward
+    from examples.inf.reward_functions.rmsf1 import rmsf1_reward
+    from examples.inf.reward_functions.scrm import scrm_reward
+    from examples.inf.reward_functions.tanimoto import tanimoto_reward
+    from examples.inf.reward_functions.anls import anls_reward
+except ImportError:
+    # 添加当前目录到 Python 路径
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+
+    from doc2json import Doc2JsonReward
+    from eds import accuracy_reward as eds_reward
+    from teds import TEDS
+    from teds import teds_reward
+    from math_formula_cdm import cdm_reward
+    from bleu import bleu_reward
+    from rmsf1 import rmsf1_reward
+    from scrm import scrm_reward
+    from tanimoto import tanimoto_reward
+    from anls import anls_reward
 
 
 def compute_score(
