@@ -106,7 +106,7 @@ class DocDataset(RLHFDataset):
     def add_source_and_gt(self, dataset):
 
         def func(example):
-            data_source = example.get("attributes", {}).get("subtask", "doc")
+            data_source = example.get("attributes", {}).get("subtask", "doc2json")
             ground_truth = example[self.prompt_key][-1]["value"]
             if example.get("objects") is not None:
                 objects = example["objects"]
