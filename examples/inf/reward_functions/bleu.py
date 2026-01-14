@@ -25,6 +25,7 @@ def bleu_reward(solution_str: str, ground_truth: str) -> float:
         reward = sacrebleu.corpus_bleu(
             [solution_str], [[ground_truth]], lowercase=True
         ).score
+        reward = max(0.0, min(1.0, reward / 100.0))
         return reward
     except Exception as e:
         return 0.0

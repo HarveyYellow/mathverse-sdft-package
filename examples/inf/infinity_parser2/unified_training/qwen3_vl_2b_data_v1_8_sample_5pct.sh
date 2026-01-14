@@ -24,12 +24,20 @@ export VLLM_ALLREDUCE_USE_SYMM_MEM=0 # for vllm0.11.0 with TP
 export PYTHONPATH="/home/ma-user/work/data_mllm/swift_share/Megatron-LM":$PYTHONPATH
 echo "PYTHONPATH: $PYTHONPATH"
 
-NNODES=${MA_NUM_HOSTS:-"1"}
-NODE_RANK="$VC_TASK_INDEX"
-MASTER_DOMAIN_ADDR="${VC_WORKER_HOSTS%%,*}"
-MASTER_IP_ADDR=$(python -c "import socket; print(socket.gethostbyname('$MASTER_DOMAIN_ADDR'))" 2>/dev/null)
-MASTER_PORT="6379"
-NGPUS_PER_NODE="$MA_NUM_GPUS"
+if [[ -z ${MA_NUM_HOSTS} ]]; then
+    NNODES="1"
+    NODE_RANK="0"
+    MASTER_IP_ADDR="0.0.0.0"
+    MASTER_PORT="6379"
+    NGPUS_PER_NODE="8"
+else
+    NNODES=${MA_NUM_HOSTS:-"1"}
+    NODE_RANK="$VC_TASK_INDEX"
+    MASTER_DOMAIN_ADDR="${VC_WORKER_HOSTS%%,*}"
+    MASTER_IP_ADDR=$(python -c "import socket; print(socket.gethostbyname('$MASTER_DOMAIN_ADDR'))" 2>/dev/null)
+    MASTER_PORT="6379"
+    NGPUS_PER_NODE="$MA_NUM_GPUS"
+fi
 
 echo "=== node info in modelarts ==="
 echo "node number: ${NNODES}"
