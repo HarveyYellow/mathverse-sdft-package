@@ -15,10 +15,10 @@ def load_reward_module():
         / "examples"
         / "inf"
         / "reward_functions"
-        / "infinity_parser2_multitask_rewards.py"
+        / "infinity_parser2_multitask_rewards_v2.py"
     )
     spec = importlib.util.spec_from_file_location(
-        "infinity_parser2_multitask_rewards", str(target)
+        "infinity_parser2_multitask_rewards_v2", str(target)
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
