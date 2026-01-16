@@ -19,6 +19,7 @@ import dataclasses
 import numpy as np
 from scipy import optimize
 import itertools
+import traceback
 
 
 def extract_valid_content(text):
@@ -231,4 +232,5 @@ def rmsf1_reward(solution_str: str, ground_truth: str) -> float:
 
         return reward
     except Exception as e:
+        traceback.print_exc()
         return 0.0

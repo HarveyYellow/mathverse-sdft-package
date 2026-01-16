@@ -15,6 +15,7 @@
 import re
 from typing import List, Dict, Tuple
 import sacrebleu
+import traceback
 
 
 def bleu_reward(solution_str: str, ground_truth: str) -> float:
@@ -28,4 +29,5 @@ def bleu_reward(solution_str: str, ground_truth: str) -> float:
         reward = max(0.0, min(1.0, reward / 100.0))
         return reward
     except Exception as e:
+        traceback.print_exc()
         return 0.0

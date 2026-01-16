@@ -17,6 +17,7 @@ from typing import List, Dict, Tuple
 from rdkit import Chem
 from rdkit import DataStructs
 from rdkit import RDLogger
+import traceback
 
 # Disable RDKit logging to prevent console spam from invalid SMILES or dummy atoms
 RDLogger.DisableLog("rdApp.*")
@@ -170,4 +171,5 @@ def tanimoto_reward(solution_str: str, ground_truth: str) -> float:
         reward = tanimoto_similarity(solution_str, ground_truth)
         return reward
     except Exception as e:
+        traceback.print_exc()
         return 0.0

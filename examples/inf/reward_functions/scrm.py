@@ -17,6 +17,7 @@ from typing import List, Dict, Tuple
 import json
 import Levenshtein
 import numpy as np
+import traceback
 
 
 def extract_valid_content(text):
@@ -244,7 +245,7 @@ def scrm_reward(solution_str: str, ground_truth: str) -> float:
 
         # 收集 mPrecision 需要的数据
         predictions = [pred_json.get("values", {})]
-        labels = [gt_json["gts"]["values"]]
+        labels = [gt_json["values"]]
 
         # # 收集 OCR/EM 需要的数据
         # title_preds = [pred_json.get('title', 'None')]
@@ -274,4 +275,5 @@ def scrm_reward(solution_str: str, ground_truth: str) -> float:
         reward = map_score
         return reward
     except Exception as e:
+        traceback.print_exc()
         return 0.0

@@ -15,6 +15,7 @@
 import re
 from typing import List, Dict, Tuple
 import Levenshtein
+import traceback
 
 
 def extract_valid_content(text):
@@ -50,6 +51,7 @@ def accuracy_reward(solution_str: str, ground_truth: str) -> float:
         reward = similarity(solution_str, ground_truth)
         return reward
     except Exception as e:
+        traceback.print_exc()
         return 0.0
 
 

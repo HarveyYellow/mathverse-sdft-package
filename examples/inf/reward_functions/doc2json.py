@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Tuple
 import Levenshtein
 from shapely.geometry import Polygon, box
 from shapely.ops import unary_union
+import traceback
 
 
 def extract_json_content(text):
@@ -250,6 +251,7 @@ class Doc2JsonReward:
             )
             return (total_reward, text_reward, layout_reward), trunc, None
         except Exception as e:
+            traceback.print_exc()
             return (0, 0, 0), trunc, (e, pred_json)
 
 

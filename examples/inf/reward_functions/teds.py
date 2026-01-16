@@ -21,6 +21,7 @@ from lxml import etree, html
 from collections import deque
 from tqdm import tqdm
 import numpy as np
+import traceback
 
 
 class TableTree(Tree):
@@ -259,4 +260,5 @@ def teds_reward(solution_str: str, ground_truth: str) -> float:
         reward = teds_obj.evaluate(solution_str, ground_truth)
         return reward
     except Exception as e:
+        traceback.print_exc()
         return 0.0

@@ -226,8 +226,7 @@ class CDM:
             box_gt, box_pred = self._load_bboxes(img_id)
             img_gt, img_pred = self._load_images(img_id)
             matched_idxes, inliers = self._match_boxes(box_gt, box_pred, img_gt, img_pred)
-        except:
-            traceback.print_exc()
+        except Exception as e:
             return {"recall": 0, "precision": 0, "F1_score": 0}
 
         recall, precision, F1_score = self._calculate_metrics(box_gt, box_pred, inliers)
@@ -269,4 +268,5 @@ def cdm_reward(solution_str: str, ground_truth: str) -> float:
         ]
         return reward
     except Exception as e:
+        traceback.print_exc()
         return 0.0

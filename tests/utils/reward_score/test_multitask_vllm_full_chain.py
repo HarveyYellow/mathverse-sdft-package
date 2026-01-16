@@ -3,9 +3,13 @@ import tempfile
 import unittest
 import importlib.util
 from pathlib import Path
+from PIL import Image
+import base64
+import io
+import re
 
 try:
-    from vllm import LLM
+    from vllm import LLM, SamplingParams
 except Exception as e:
     raise unittest.SkipTest(f"vllm not available: {e}")
 
@@ -22,10 +26,50 @@ def load_reward_module():
         / "reward_functions"
         / "infinity_parser2_multitask_rewards_v2.py"
     )
-    spec = importlib.util.spec_from_file_location("infinity_parser2_multitask_rewards_v2", str(target))
+    spec = importlib.util.spec_from_file_location(
+        "infinity_parser2_multitask_rewards_v2", str(target)
+    )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+def pil_to_base64(image: Image.Image, format: str = "PNG") -> str:
+    """
+    将PIL图像转换为base64编码的字符串
+
+    Args:
+        image: PIL Image对象
+        format: 输出格式，如 "PNG", "JPEG", "WEBP" 等
+
+    Returns:
+        base64编码的字符串，可以直接用于HTML img标签的src属性
+    """
+    # 创建一个字节流缓冲区
+    buffer = io.BytesIO()
+
+    # 将图像保存到缓冲区
+    image.save(buffer, format=format)
+
+    # 获取缓冲区中的字节数据
+    img_bytes = buffer.getvalue()
+
+    # 将字节数据转换为base64编码
+    img_base64 = base64.b64encode(img_bytes).decode("utf-8")
+
+    # 构建data URL格式
+    # 常见的MIME类型映射
+    mime_types = {
+        "PNG": "image/png",
+        "JPEG": "image/jpeg",
+        "JPG": "image/jpeg",
+        "GIF": "image/gif",
+        "WEBP": "image/webp",
+        "BMP": "image/bmp",
+    }
+
+    mime_type = mime_types.get(format.upper(), "image/png")
+    return f"data:{mime_type};base64,{img_base64}"
 
 
 class TestMultitaskVLLMFullChain(unittest.TestCase):
@@ -43,13 +87,15 @@ class TestMultitaskVLLMFullChain(unittest.TestCase):
             "prompt_key": "conversations",
             "shuffle": False,
         }
-        self.model_path = "/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-2B"
+        self.model_path = "/home/ma-user/work/zuminghuang/03_projects/07_infinity_parser2/ms-swift/output/qwen3_vl_2b_sft_data_v1_8_mcore_pix4k_len32k/v0-20260107-193438/checkpoint-3828"
         try:
             # Keep tokenizer/processor as instance attributes for use below
-            self.tokenizer = hf_tokenizer(model_path)
-            self.processor = hf_processor(model_path)
+            self.tokenizer = hf_tokenizer(self.model_path)
+            self.processor = hf_processor(self.model_path)
         except Exception as e:
-            self.skipTest(f"hf_tokenizer/hf_processor unavailable for {model_path}: {e}")
+            self.skipTest(
+                f"hf_tokenizer/hf_processor unavailable for {self.model_path}: {e}"
+            )
 
     def test_vllm_full_chain_all_tasks(self):
         """
@@ -59,7 +105,7 @@ class TestMultitaskVLLMFullChain(unittest.TestCase):
          - generate n=8 sequences via vllm
          - compute reward for each generated sequence via compute_score
         """
-        data_files = "/home/ma-user/work/data_mllm/new_datasets/swift_merged_datasets/version_v1.8/train_v1.8_sample_5pct.jsonl"
+        data_files = "/home/ma-user/work/data_mllm/new_datasets/swift_merged_datasets/version_v1.8/train_v1.8_sample_5e-5.jsonl"
         doc_dataset = DocDataset(
             data_files=data_files,
             tokenizer=self.tokenizer,
@@ -73,31 +119,40 @@ class TestMultitaskVLLMFullChain(unittest.TestCase):
         for data_item in doc_dataset:
             # Convert dataset item to prompt text, ground truth and data source.
             # DocDataset produces examples with a `conversations` field (list-like)
-            if isinstance(data_item, dict):
-                conversations = data_item.get("conversations") or data_item.get("prompt") or []
-            else:
-                conversations = []
+            prompt_text = self.tokenizer.decode(data_item["raw_prompt_ids"])
+            match = re.search(r'<\|vision_end\|>(.*?)<\|im_end\|>', prompt_text, re.DOTALL)
+            if match:
+                prompt_text = match.group(1).strip()
+            ground_truth = data_item["reward_model"]["ground_truth"]
+            data_source = data_item["data_source"]
 
-            if not conversations or len(conversations) < 2:
-                # skip malformed entries
-                continue
+            params = {
+                "max_tokens": 8192,
+                "temperature": 0.6,
+                "top_k": 50,
+                "top_p": 0.95,
+                "n": 8,
+            }
+            sampling_params = SamplingParams(**params)
 
-            prompt_text = conversations[0]
-            ground_truth = conversations[1]
-            ds = data_item.get("data_source", None) if isinstance(data_item, dict) else None
+            messages = [{"role": "user", "content": []}]
+            for img in data_item["multi_modal_data"]["image"]:
+                img = pil_to_base64(img)
+                messages[0]["content"].append(
+                    {"type": "image_url", "image_url": {"url": img}}
+                )
+            # append contexts to images
+            messages[0]["content"].append({"type": "text", "text": prompt_text})
+            batched_messages = [messages]
 
             # generate n=8 outputs
-            gen = client.generate(prompt=prompt_text, max_tokens=64, n=8)
+            gen = client.chat(
+                sampling_params=sampling_params, messages=batched_messages
+            )
             gen_texts = []
             for gen_batch in gen:
                 for out_item in getattr(gen_batch, "outputs", []):
                     txt = getattr(out_item, "text", None)
-                    if txt is None:
-                        token_ids = getattr(out_item, "token_ids", None)
-                        if token_ids is not None and hasattr(self.tokenizer, "decode"):
-                            txt = self.tokenizer.decode(token_ids)
-                        else:
-                            txt = ""
                     gen_texts.append(txt)
 
             gen_texts = gen_texts[:8]
@@ -106,22 +161,23 @@ class TestMultitaskVLLMFullChain(unittest.TestCase):
             # compute reward for each generated text
             scores = []
             for txt in gen_texts:
-                res = self.mod.compute_score(txt, ground_truth, data_source=ds)
+                res = self.mod.compute_score(txt, ground_truth, data_source=data_source)
                 if isinstance(res, dict):
                     score = res.get("score", None)
                 else:
                     score = res
                 scores.append(score)
 
-            # Assert scores are numeric and within [0,1]
-            for s in scores:
-                self.assertIsNotNone(s)
-                self.assertIsInstance(s, float)
-                self.assertGreaterEqual(s, 0.0)
-                self.assertLessEqual(s, 1.0)
+            try:
+                # Assert scores are numeric and within [0,1]
+                for s in scores:
+                    self.assertIsNotNone(s)
+                    self.assertIsInstance(s, float)
+                    self.assertGreaterEqual(s, 0.0)
+                    self.assertLessEqual(s, 1.0)
+            except:
+                import pdb; pdb.set_trace();
 
 
 if __name__ == "__main__":
     unittest.main()
-
-

@@ -15,6 +15,7 @@
 import re
 from typing import List, Dict, Tuple
 import Levenshtein
+import traceback
 
 
 def anls(
@@ -43,7 +44,10 @@ def anls(
 
 def anls_reward(solution_str: str, ground_truth: List[str]) -> float:
     try:
+        if isinstance(ground_truth, str):
+            ground_truth = [ground_truth]
         reward = anls(solution_str, ground_truth)
         return reward
     except Exception as e:
+        traceback.print_exc()
         return 0.0
