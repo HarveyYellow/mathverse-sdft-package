@@ -4,6 +4,10 @@ from mailbox import NotEmptyError
 import re
 from typing import List, Dict, Tuple
 
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 try:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, "{}/../../..".format(current_dir))
@@ -12,7 +16,7 @@ try:
     from examples.inf.reward_functions.eds import accuracy_reward as eds_reward
     # from examples.inf.reward_functions.teds import TEDS
     from examples.inf.reward_functions.teds import teds_reward
-    # from examples.inf.reward_functions.math_formula_cdm import cdm_reward
+    from examples.inf.reward_functions.math_formula_eds import math_formula_eds_reward
     from examples.inf.reward_functions.bleu import bleu_reward
     from examples.inf.reward_functions.rmsf1 import rmsf1_reward
     from examples.inf.reward_functions.scrm import scrm_reward
@@ -61,8 +65,7 @@ def compute_score(
         # accuracy_score = teds_reward(solution_str, ground_truth)
         accuracy_score = eds_reward(solution_str, ground_truth)
     elif data_source == "formula2latex":
-        # accuracy_score = cdm_reward(solution_str, ground_truth)
-        accuracy_score = eds_reward(solution_str, ground_truth)
+        accuracy_score = math_formula_eds_reward(solution_str, ground_truth)
     elif data_source == "chart2text":
         accuracy_score = bleu_reward(solution_str, ground_truth)
     elif data_source == "chart2table":
@@ -75,6 +78,9 @@ def compute_score(
         accuracy_score = anls_reward(solution_str, ground_truth)
     else:
         raise NotImplementedError
+
+    # debug
+    logger.info(f"solution_str: {solution_str}, ground_truth: {ground_truth}, data_source: {data_source}, accuracy_score: {accuracy_score}")
 
     result = {
         "score": accuracy_score,

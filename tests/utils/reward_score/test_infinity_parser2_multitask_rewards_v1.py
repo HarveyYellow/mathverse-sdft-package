@@ -102,7 +102,7 @@ class TestComputeScoreRealCases(unittest.TestCase):
         sol = "$$\\gamma_{0}^{\\prime}\\approx-h_{1}\\gamma_{0}^{3}+O(\\gamma_{0}^{5}),$$"
         gt = "$$\\gamma_{0}^{\\prime}\\approx-h_{1}\\gamma_{0}^{3}+{\\cal{O}}(\\gamma_{0}^{5}),$$"
         res = self.mod.compute_score(sol, gt, data_source="formula2latex")
-        self.assertEqual(res["score"], self.mod.eds_reward(sol, gt))
+        self.assertEqual(res["score"], self.mod.math_formula_eds_reward(sol, gt))
         self.assertGreater(res["score"], 0.5)
 
     def test_chart(self):

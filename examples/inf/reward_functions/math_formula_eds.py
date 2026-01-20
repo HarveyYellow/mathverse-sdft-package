@@ -162,32 +162,3 @@ def compute_score(
         "accuracy": accuracy_score,
     }
     return result
-
-
-if __name__ == "__main__":
-    # 测试用例
-    test_cases = [
-        (
-            r"x_{i}^{2} + \left( \frac{1}{2} \right) \to \infty",
-            r"x^2_i + \frac{1}{2} \rightarrow \infty",
-        ),
-        (r"\left(  a  \quad + \quad b  \right) = \Big[ c \Big]", r"(a+b)=[c]"),
-        (r"a \le b \to c \ast d \ge e", r"a\leqb\rightarrowc*d\geqe"),
-        (r"x^2_i + y^{abc}_{def} + z^k_{n}", r"x_i^2+y_{def}^{abc}+z_n^k"),
-        (r"e^{x} + a_{1} + b_{12} + c^{ \pi }", r"e^x+a_1+b_{12}+c^{\pi}"),
-        (
-            r"\sum ^{ \infty }_{ n = 1 } \frac { 1 } { n^2 } \to \frac{\pi^2}{6}",
-            r"\sum_{n=1}^\infty\frac{1}{n^2}\rightarrow\frac{\pi^2}{6}",
-        ),
-    ]
-
-    for idx, (pd_inp, gt_inp) in enumerate(test_cases):
-        pd_out = normalize_latex(pd_inp)
-        gt_out = normalize_latex(gt_inp)
-        status = "PASS" if pd_out == gt_out else "!!!FAIL!!!"
-        print(f"====== case {idx} =====")
-        print(f"pd_inp: {pd_inp}")
-        print(f"gt_inp: {gt_inp}")
-        print(f"pd_out: {pd_out}")
-        print(f"gt_out: {gt_out}")
-        print(f"status: {status}")
