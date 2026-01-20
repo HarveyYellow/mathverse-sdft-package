@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import re
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
 import Levenshtein
 import traceback
 
@@ -43,10 +43,10 @@ def normalize_latex(latex_string):
     # s = re.sub(r'\\begin\{.*?\}', '', s)
     # s = re.sub(r'\\end\{.*?\}', '', s)
 
-    # 3. 移除由 \left 和 \right 组成的修饰
-    # pattern: \left 后面跟任意非空白字符
-    s = s.replace(r"\left", "")
-    s = s.replace(r"\right", "")
+    # 3. 移除由 \left 和 \right 组成的修饰（只移除命令本身，保留实际的括号/分隔符）,
+    # 避免误删例如 \rightarrow 中的 'right'
+    s = re.sub(r"\\left(?=[\(\[\{\.])", "", s)
+    s = re.sub(r"\\right(?=[\)\]\}\.])", "", s)
 
     # 4. 移除由 \big, \Big 等组成的大小修饰
     s = re.sub(r"\\[bB]igg?[lr]?", "", s)
@@ -57,16 +57,13 @@ def normalize_latex(latex_string):
     s = re.sub(r"\\[,;!: ]|\\quad|\\qquad|\s+", "", s)
 
     # 6. 命令同义词替换 (Map to Canonical forms)
-    # 这是一个映射表，根据你的 Ground Truth 风格进行调整
-    replacements = {
-        r"\to": r"\rightarrow",
-        r"\le": r"\leq",
-        r"\ge": r"\geq",
-        r"\ast": r"*",
-        # 可以在这里添加更多映射
-    }
-    for source, target in replacements.items():
-        s = s.replace(source, target)
+    # 使用正则避免对已正规化的命令造成二次替换（例如不要把 \leq 变成 \leqq）
+    # Replace common commands; allow \\to replacement even if letters follow because spaces
+    # are removed earlier (e.g., '\to c' -> '\toc').
+    s = re.sub(r"\\to", r"\\rightarrow", s)
+    s = re.sub(r"\\le(?!q)", r"\\leq", s)
+    s = re.sub(r"\\ge(?!q)", r"\\geq", s)
+    s = re.sub(r"\\ast", "*", s)
 
     # 7. 处理上下标顺序 (Normalize Sub/Superscript Order)
     # 目标：将 x^a_b 转换为 x_b^a (先下后上) 或者反之
@@ -115,6 +112,11 @@ def normalize_latex(latex_string):
     # 8. 花括号标准化 (可选)
     # 策略 A: 移除单字符的花括号 x^{2} -> x^2
     s = re.sub(r"([_^])\{([a-zA-Z0-9])\}", r"\1\2", s)
+    # 策略 C: 将 ^{\\infty} -> ^\infty, _{\\alpha} -> _\alpha 等（去掉包裹命令的花括号）
+    s = re.sub(r"\^\{(\\[a-zA-Z]+)\}", r"^\1", s)
+    s = re.sub(r"_\{(\\[a-zA-Z]+)\}", r"_\1", s)
+    # 移除围绕单个 \\frac 的多余括号 (例如由 \left(\frac{...}\right) 产生)
+    s = re.sub(r"\((\\frac\{[^}]+\}\{[^}]+\})\)", r"\1", s)
 
     # 策略 B: (如果你想保留所有花括号) x^2 -> x^{2}
     # s = re.sub(r'([_^])([a-zA-Z0-9])', r'\1{\2}', s)
@@ -150,7 +152,7 @@ def compute_score(
     solution_str: str,
     ground_truth: str,
     data_source: str = None,
-    extra_info: str | dict = None,
+    extra_info: Union[str, dict] = None,
     format_score: float = 0.3,
 ) -> dict:
     accuracy_score = math_formula_eds_reward(solution_str, ground_truth)
