@@ -173,3 +173,19 @@ def tanimoto_reward(solution_str: str, ground_truth: str) -> float:
     except Exception as e:
         traceback.print_exc()
         return 0.0
+
+
+def compute_score(
+    solution_str: str,
+    ground_truth: str,
+    data_source: str = None,
+    extra_info: str | dict = None,
+    format_score: float = 0.3,
+) -> dict:
+    accuracy_score = tanimoto_reward(solution_str, ground_truth)
+    result = {
+        "score": accuracy_score,
+        "format": 0,
+        "accuracy": accuracy_score,
+    }
+    return result
