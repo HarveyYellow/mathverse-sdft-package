@@ -32,7 +32,7 @@ except ImportError:
     from eds import accuracy_reward as eds_reward
     # from teds import TEDS
     from teds import teds_reward
-    # from math_formula_cdm import cdm_reward
+    from math_formula_eds import math_formula_eds_reward
     from bleu import bleu_reward
     from rmsf1 import rmsf1_reward
     from scrm import scrm_reward

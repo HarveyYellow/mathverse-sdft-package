@@ -4,6 +4,10 @@ from mailbox import NotEmptyError
 import re
 from typing import List, Dict, Tuple
 
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 try:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, "{}/../../..".format(current_dir))
@@ -73,6 +77,9 @@ def compute_score(
         accuracy_score = anls_reward(solution_str, ground_truth)
     else:
         raise NotImplementedError
+
+    # debug
+    logger.info(f"solution_str: {solution_str}, ground_truth: {ground_truth}, data_source: {data_source}, accuracy_score: {accuracy_score}")
 
     result = {
         "score": accuracy_score,
