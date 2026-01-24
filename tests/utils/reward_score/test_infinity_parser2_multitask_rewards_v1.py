@@ -115,6 +115,12 @@ class TestComputeScoreRealCases(unittest.TestCase):
         self.assertGreaterEqual(res["score"], 0.0)
         self.assertLessEqual(res["score"], 1.0)
 
+        sol = " The statistic represents growth in current and projected coal consumption by the electric power sector in the United States between 2010 and 2019 with a forecast for until 2021. The U.S. electric power sector's coal consumption is expected to increase by around 74.9 million short tons of coal in 2021. "
+        gt = " The statistic represents growth in current and projected coal consumption by the electric power sector in the United States between 2010 and 2019 with a forecast for until 2021. The U.S. electric power sector's coal consumption is expected to increase by around 74.9 million short tons of coal in 2021. "
+        res = self.mod.compute_score(sol, gt, data_source="chart2text")
+        self.assertEqual(res["score"], self.mod.bleu_reward(sol, gt))
+        self.assertEqual(res["score"], 1.0)
+
         # chart2table -> rmsf1_reward
         sol = "Capital University at. Marietta College | Box Score | 11/12/2011 - D3football | Chad Walker | Quincy Bell & Percentage | 80% | 20%"
         gt = "Capital University at. Marietta College | Box Score | 11/12/2011 - D3football | Chad Walker | Quincy Bell & Percentage | 80% | 20%"
