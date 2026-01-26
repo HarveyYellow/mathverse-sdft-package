@@ -54,14 +54,14 @@ echo "ENGINE: $ENGINE"
 
 HF_MODEL_PATH="/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-2B-Instruct"
 
-GEN_TP=${GEN_TP:-2}
+GEN_TP=${GEN_TP:-1}
 CP=${CP:-1}
 TP=${TP:-1}
 PP=${PP:-1}
 EP=${EP:-1}
 ETP=${ETP:-1}
 
-train_path="/home/ma-user/work/data_mllm/new_datasets/document-general-general-mm-public/single-parsing-markdown-general-collect/Infinity-Doc-400K/train_sample_5k.json"
+train_path="/home/ma-user/work/data_mllm/new_datasets/document-general-general-mm-public/single-parsing-markdown-general-collect/Infinity-Doc-400K/train_sample_3k.json"
 test_path="/home/ma-user/work/data_mllm/new_datasets/document-general-general-mm-public/single-parsing-markdown-general-collect/Infinity-Doc-400K/train_sample_3.json"
 
 current_script="$(realpath "$0")"
@@ -71,10 +71,10 @@ experiment_name="${script_basename%.*}"
 reward_fn_path="examples/inf/reward_functions/eds.py"
 experiment_dir="checkpoints/${project_name}/${experiment_name}"
 
-sudo mkdir -p ${experiment_dir}
-sudo chmod -R 777 ${experiment_dir}
-sudo cp -f "$current_script" ${experiment_dir}
-sudo cp -f "$reward_fn_path" ${experiment_dir}
+mkdir -p ${experiment_dir}
+chmod -R 777 ${experiment_dir}
+cp -f "$current_script" ${experiment_dir}
+cp -f "$reward_fn_path" ${experiment_dir}
 
 python3 -m verl.trainer.main_ppo --config-path=config \
     --config-name='ppo_megatron_trainer.yaml'\
