@@ -170,7 +170,8 @@ class DocDataset(RLHFDataset):
             content_list = []
             for i, content in enumerate(prompt_str.split("<image>")):
                 if i != 0:
-                    content_list.append({"type": "image"})
+                    image_obj = Image.open(example[self.image_key][i - 1]).convert("RGB")
+                    content_list.append({"type": "image", "image": image_obj})
 
                 if content:
                     content_list.append({"type": "text", "text": content})
