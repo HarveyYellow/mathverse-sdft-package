@@ -19,6 +19,7 @@ import logging
 import os
 import re
 import traceback
+import json
 from collections import defaultdict
 from typing import Optional, Any, List
 
@@ -101,6 +102,9 @@ class DocDataset(RLHFDataset):
         self.bbox_format = config.get("bbox_format", "new")
         self.norm_bbox = config.get("norm_bbox", "none")
 
+        # allowed data_source list to keep (None means keep all)
+        self.allowed_data_sources = json.loads(config.get("allowed_data_sources", "null"))
+
         super().__init__(data_files, tokenizer, config, processor, max_samples)
 
     def add_source_and_gt(self, dataset):
@@ -130,6 +134,14 @@ class DocDataset(RLHFDataset):
 
         return dataset.map(func)
 
+    def filter_data_sources(self, dataset):
+        if self.allowed_data_sources is not None:
+            dataset = dataset.filter(
+                lambda x: x.get("attributes", {}).get("subtask", "doc2json") in self.allowed_data_sources
+            )
+            print(f"filtered data sources, dataset len: {len(dataset)}")
+        return dataset
+
     def _read_files_and_tokenize(self):
         dataframes = []
         for data_file in self.data_files:
@@ -158,6 +170,8 @@ class DocDataset(RLHFDataset):
         self.dataframe = self.add_source_and_gt(self.dataframe)
         # filter long prompts
         self.dataframe = self.maybe_filter_out_long_prompts(self.dataframe)
+        # filter data sources
+        self.dataframe = self.filter_data_sources(self.dataframe)
 
     def _build_messages(self, example: dict[str, Any]) -> list[dict[str, Any]]:
         prompt_str: str = example.pop(self.prompt_key)[0]["value"]
