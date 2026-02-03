@@ -104,6 +104,7 @@ class DocDataset(RLHFDataset):
 
         # allowed data_source list to keep (None means keep all)
         self.allowed_data_sources = json.loads(config.get("allowed_data_sources", "null"))
+        print(f"self.allowed_data_sources: {self.allowed_data_sources}")
 
         super().__init__(data_files, tokenizer, config, processor, max_samples)
 
