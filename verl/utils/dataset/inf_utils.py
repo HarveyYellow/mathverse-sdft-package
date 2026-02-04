@@ -43,13 +43,11 @@ def normalize_bbox(
     min_pixels: int,
     max_pixels: int,
 ) -> None:
-    objects["width"] = [image.width for image in images]
-    objects["height"] = [image.height for image in images]
+    width_list = [image.width for image in images]
+    height_list = [image.height for image in images]
     norm_shapes = get_norm_shapes(images, patch_factor, min_pixels, max_pixels)
 
     bbox_list = objects["bbox"]
-    width_list = objects["width"]
-    height_list = objects["height"]
     bbox_type = objects.pop("bbox_type", None) or "real"
     image_id_list = objects.pop("image_id", None) or []
     image_id_list += [0] * (len(bbox_list) - len(image_id_list))

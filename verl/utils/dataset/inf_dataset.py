@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 from importlib import metadata
 from io import BytesIO
 from PIL import Image
-from qwen_vl_utils import fetch_image, vision_process
+from qwen_vl_utils import fetch_image
 
 
 def custom_process_image(
@@ -224,6 +224,8 @@ class DocDataset(RLHFDataset):
         config: DictConfig,
     ) -> tuple[list[Image.Image], list[tuple[torch.Tensor, dict]]]:
         """Extract images and videos from messages. Derived from rl_dataset.py"""
+        from qwen_vl_utils import process_vision_info
+
         set_pixels_for_vision_process(config)
 
         images, videos = process_vision_info(messages, image_patch_size=image_patch_size, return_video_metadata=True)
