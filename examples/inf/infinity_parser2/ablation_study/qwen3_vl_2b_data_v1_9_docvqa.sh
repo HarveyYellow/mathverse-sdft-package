@@ -105,14 +105,14 @@ if [ "$NODE_RANK" = "0" ]; then
 
     HF_MODEL_PATH="/home/ma-user/work/zuminghuang/03_projects/07_infinity_parser2/ms-swift/output/qwen3_vl_2b_sft_data_v1_9_mcore_pix4k_len32k/v0-20260117-111313/checkpoint-4023"
 
-    GEN_TP=${GEN_TP:-2}
+    GEN_TP=${GEN_TP:-4}
     CP=${CP:-1}
-    TP=${TP:-1}
+    TP=${TP:-4}
     PP=${PP:-1}
     EP=${EP:-1}
     ETP=${ETP:-1}
 
-    train_path="/home/ma-user/work/data_mllm/new_datasets/swift_merged_datasets/version_v1.9/train_v1.9_sample_5pct_v2.jsonl"
+    train_path="/home/ma-user/work/data_mllm/new_datasets/swift_merged_datasets/version_v1.9/split_subtasks/train_v1.9_sample_5pct_docvqa.jsonl"
     test_path="/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/infinity_doc2_pdf2md_data_swift_sample3_v1.json"
 
     current_script="$(realpath "$0")"
@@ -120,8 +120,7 @@ if [ "$NODE_RANK" = "0" ]; then
     project_name="infinity_parser2"
     experiment_name="${script_basename%.*}"
     reward_fn_path="examples/inf/reward_functions/infinity_parser2_multitask_rewards_v1.py"
-    current_time=$(date "+%Y%m%d_%H%M%S")
-    experiment_dir="checkpoints/${project_name}/${experiment_name}_${current_time}"
+    experiment_dir="checkpoints/${project_name}/${experiment_name}"
 
     sudo mkdir -p ${experiment_dir}
     sudo chmod -R 777 ${experiment_dir}
@@ -133,7 +132,6 @@ if [ "$NODE_RANK" = "0" ]; then
         algorithm.adv_estimator=grpo \
         +data.bbox_format="new" \
         +data.norm_bbox="norm1000" \
-        +data.allowed_data_sources=$2 \
         data.custom_cls.path="verl/utils/dataset/inf_dataset.py" \
         data.custom_cls.name="DocDataset" \
         data.train_files="$train_path" \
@@ -147,7 +145,7 @@ if [ "$NODE_RANK" = "0" ]; then
         data.prompt_key="conversations" \
         data.filter_overlong_prompts=False \
         data.seed=42 \
-        data.shuffle=False \
+        data.shuffle=True \
         data.truncation='error' \
         actor_rollout_ref.model.path=$HF_MODEL_PATH \
         actor_rollout_ref.actor.optim.lr=1e-6 \
@@ -198,7 +196,7 @@ if [ "$NODE_RANK" = "0" ]; then
         trainer.nnodes=${NNODES} \
         trainer.save_freq=200 \
         trainer.test_freq=200 \
-        trainer.total_epochs=1 "${@:3}"
+        trainer.total_epochs=1 $@
 
     echo "finish training"
 fi
