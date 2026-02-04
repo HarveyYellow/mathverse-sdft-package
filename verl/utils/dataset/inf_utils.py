@@ -13,12 +13,9 @@ from datasets import Features, Value, Sequence
 
 
 def get_type_feature(value):
-    """
-    递归将 Python 数据值转换为 Hugging Face datasets 的 Feature 对象。
-    """
+    """递归推断类型，使用 Python 原生 list 代表 Sequence"""
     if value is None:
-        return None  # 无法推断，标记为 None
-
+        return None
     if isinstance(value, bool):
         return Value("bool")
     elif isinstance(value, int):
@@ -26,46 +23,36 @@ def get_type_feature(value):
     elif isinstance(value, float):
         return Value("float32")
     elif isinstance(value, str):
-        # 简单的字符串
         return Value("string")
     elif isinstance(value, dict):
-        # 递归处理嵌套字典 (Struct)
         return {k: get_type_feature(v) for k, v in value.items()}
     elif isinstance(value, list):
-        # 处理列表 (Sequence)
         if len(value) == 0:
-            return Sequence(Value("string"))  # 空列表默认当 string list 处理，防止报错
-        # 取列表第一个非空元素来推断类型
+            return [Value("string")]  # 使用 [ ] 代替 Sequence
+        # 采样第一个非空元素
         item_feature = get_type_feature(value[0])
-        return Sequence(item_feature)
-    else:
-        return Value("string")  # 兜底策略
+        return [item_feature]  # 返回原生列表结构
+    return Value("string")
 
 
-def merge_schemas(base_schema, new_schema):
-    """
-    递归合并两个 Schema（字典格式）。
-    策略：取并集。如果 base 中是 None，而被合并项有值，则更新。
-    """
-    if base_schema is None:
-        return new_schema
-    if new_schema is None:
-        return base_schema
+def merge_schemas(base, new):
+    """递归合并 Schema，处理原生 dict 和 list"""
+    if base is None:
+        return new
+    if new is None:
+        return base
 
-    # 如果两个都是字典（嵌套结构），递归合并
-    if isinstance(base_schema, dict) and isinstance(new_schema, dict):
-        all_keys = set(base_schema.keys()) | set(new_schema.keys())
-        merged = {}
-        for key in all_keys:
-            val_base = base_schema.get(key)
-            val_new = new_schema.get(key)
-            merged[key] = merge_schemas(val_base, val_new)
-        return merged
+    # 处理列表 (Sequence)
+    if isinstance(base, list) and isinstance(new, list):
+        return [merge_schemas(base[0], new[0])]
 
-    # 如果是非字典（Value 或 Sequence），以“有类型”的为准
-    # 这里简化处理：假设不存在类型冲突（例如一行是 int，一行是 str），
-    # 如果存在冲突，通常保留现有的或报错。这里我们假设新发现的结构更完整。
-    return base_schema
+    # 处理字典 (Struct)
+    if isinstance(base, dict) and isinstance(new, dict):
+        all_keys = set(base.keys()) | set(new.keys())
+        return {k: merge_schemas(base.get(k), new.get(k)) for k in all_keys}
+
+    # 类型冲突时保留 base (或根据需要升级)
+    return base
 
 
 def sample_lines_from_file(file_path, n_samples=100):
