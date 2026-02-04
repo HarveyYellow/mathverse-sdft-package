@@ -73,6 +73,7 @@ class TestDocDataset(unittest.TestCase):
         self.processor = hf_processor(self.model_path)
         self.cfg = DictConfig({
             "bbox_format": "new",
+            "filter_overlong_prompts": False,
             "filter_overlong_prompts_workers": 1,
             "image_patch_size": 16,
             "max_pixels": 1344 * 1344,
@@ -94,10 +95,6 @@ class TestDocDataset(unittest.TestCase):
             config=self.cfg,
         )
         self.assertEqual(len(doc_dataset), 3)
-        # self.assertTrue("input_ids" in doc_dataset[0])
-        # self.assertTrue("attention_mask" in doc_dataset[0])
-        # self.assertTrue("position_ids" in doc_dataset[0])
-        # self.assertTrue("raw_prompt_ids" in doc_dataset[0])
         self.assertTrue("raw_prompt" in doc_dataset[0])
         self.assertTrue("data_source" in doc_dataset[0])
         self.assertTrue("reward_model" in doc_dataset[0])
@@ -113,10 +110,6 @@ class TestDocDataset(unittest.TestCase):
             max_samples=1000,
         )
         self.assertEqual(len(doc_dataset), 1000)
-        # self.assertTrue("input_ids" in doc_dataset[0])
-        # self.assertTrue("attention_mask" in doc_dataset[0])
-        # self.assertTrue("position_ids" in doc_dataset[0])
-        # self.assertTrue("raw_prompt_ids" in doc_dataset[0])
         self.assertTrue("raw_prompt" in doc_dataset[0])
         self.assertTrue("data_source" in doc_dataset[0])
         self.assertTrue("reward_model" in doc_dataset[0])
@@ -155,10 +148,6 @@ class TestDocDataset(unittest.TestCase):
             config=self.cfg,
         )
         self.assertEqual(len(doc_dataset), 6)
-        # self.assertTrue("input_ids" in doc_dataset[0])
-        # self.assertTrue("attention_mask" in doc_dataset[0])
-        # self.assertTrue("position_ids" in doc_dataset[0])
-        # self.assertTrue("raw_prompt_ids" in doc_dataset[0])
         self.assertTrue("raw_prompt" in doc_dataset[0])
         self.assertTrue("data_source" in doc_dataset[0])
         self.assertTrue("reward_model" in doc_dataset[0])
@@ -176,10 +165,6 @@ class TestDocDataset(unittest.TestCase):
             config=self.cfg,
         )
         self.assertGreater(len(doc_dataset), 0)
-        # self.assertTrue("input_ids" in doc_dataset[0])
-        # self.assertTrue("attention_mask" in doc_dataset[0])
-        # self.assertTrue("position_ids" in doc_dataset[0])
-        # self.assertTrue("raw_prompt_ids" in doc_dataset[0])
         self.assertTrue("raw_prompt" in doc_dataset[0])
         self.assertTrue("data_source" in doc_dataset[0])
         self.assertTrue("reward_model" in doc_dataset[0])
@@ -198,10 +183,6 @@ class TestDocDataset(unittest.TestCase):
             config=self.cfg,
         )
         self.assertGreater(len(doc_dataset), 0)
-        # self.assertTrue("input_ids" in doc_dataset[0])
-        # self.assertTrue("attention_mask" in doc_dataset[0])
-        # self.assertTrue("position_ids" in doc_dataset[0])
-        # self.assertTrue("raw_prompt_ids" in doc_dataset[0])
         self.assertTrue("raw_prompt" in doc_dataset[0])
         self.assertTrue("data_source" in doc_dataset[0])
         self.assertTrue("reward_model" in doc_dataset[0])

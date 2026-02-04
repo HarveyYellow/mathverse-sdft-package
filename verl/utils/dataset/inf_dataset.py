@@ -19,7 +19,6 @@ import logging
 import os
 import re
 import traceback
-import json
 from collections import defaultdict
 from typing import Optional, Any, List
 
@@ -35,6 +34,7 @@ from verl.utils.model import compute_position_id_with_mask
 from verl.utils.dataset.rl_dataset import RLHFDataset
 from verl.utils.dataset import vision_utils
 from verl.utils.dataset.inf_utils import (
+    generate_schema,
     load_images,
     normalize_bbox,
     replace_special_tokens,
@@ -56,6 +56,28 @@ def custom_process_image(
 
 
 vision_utils.process_image = custom_process_image
+
+
+def set_pixels_for_vision_process(
+    config: DictConfig,
+) -> List[int]:
+    from qwen_vl_utils import vision_process
+
+    # set min pixels and max pixels
+    if metadata.version("qwen-vl-utils") >= "0.0.14":
+        patch_factor = 16 * 2
+        min_pixels = config.get("min_pixels", 4 * patch_factor**2)
+        max_pixels = config.get("max_pixels", 16384 * patch_factor**2)
+        vision_process.IMAGE_MIN_TOKEN_NUM = min_pixels // (patch_factor**2)
+        vision_process.IMAGE_MAX_TOKEN_NUM = max_pixels // (patch_factor**2)
+    else:
+        patch_factor = 14 * 2
+        min_pixels = config.get("min_pixels", 4 * patch_factor**2)
+        max_pixels = config.get("max_pixels", 16384 * patch_factor**2)
+        vision_process.MIN_PIXELS = min_pixels
+        vision_process.MAX_PIXELS = max_pixels
+
+    return patch_factor, min_pixels, max_pixels
 
 
 class DocDataset(RLHFDataset):
@@ -83,28 +105,17 @@ class DocDataset(RLHFDataset):
         processor: Optional[ProcessorMixin] = None,
         max_samples: int = -1,
     ):
-        # set min pixels and max pixels
-        if metadata.version("qwen-vl-utils") >= "0.0.14":
-            patch_factor = 16 * 2
-            self.min_pixels = config.get("min_pixels", 4 * patch_factor**2)
-            self.max_pixels = config.get("max_pixels", 16384 * patch_factor**2)
-            vision_process.IMAGE_MIN_TOKEN_NUM = self.min_pixels // (patch_factor**2)
-            vision_process.IMAGE_MAX_TOKEN_NUM = self.max_pixels // (patch_factor**2)
-        else:
-            patch_factor = 14 * 2
-            self.min_pixels = config.get("min_pixels", 4 * patch_factor**2)
-            self.max_pixels = config.get("max_pixels", 16384 * patch_factor**2)
-            vision_process.MIN_PIXELS = self.min_pixels
-            vision_process.MAX_PIXELS = self.max_pixels
-        self.patch_factor = patch_factor
+        self.patch_factor, self.min_pixels, self.max_pixels = set_pixels_for_vision_process(config)
 
         # set bbox format and norm bbox
         self.bbox_format = config.get("bbox_format", "new")
         self.norm_bbox = config.get("norm_bbox", "none")
 
         # allowed data_source list to keep (None means keep all)
-        self.allowed_data_sources = json.loads(config.get("allowed_data_sources", "null"))
+        self.allowed_data_sources = config.get("allowed_data_sources", None)
         print(f"self.allowed_data_sources: {self.allowed_data_sources}")
+
+        self.use_generated_schema = config.get("use_generated_schema", False)
 
         super().__init__(data_files, tokenizer, config, processor, max_samples)
 
@@ -150,7 +161,12 @@ class DocDataset(RLHFDataset):
             # Refer to https://git.infly.tech/inf_algo/ms-swift/-/blob/main/swift/llm/dataset/loader.py?ref_type=heads#L208-209
             ext = os.path.splitext(data_file)[1].lstrip(".")
             file_type = {"jsonl": "json", "txt": "text"}.get(ext) or ext
-            dataframe = datasets.load_dataset(file_type, data_files=data_file)["train"]
+            if self.use_generated_schema:
+                features = generate_schema(data_file)
+                print(f"generated schema: {features}")
+                dataframe = datasets.load_dataset(file_type, data_files=data_file, features=features)["train"]
+            else:
+                dataframe = datasets.load_dataset(file_type, data_files=data_file)["train"]
             dataframes.append(dataframe)
         self.dataframe: datasets.Dataset = datasets.concatenate_datasets(dataframes)
 
@@ -207,3 +223,16 @@ class DocDataset(RLHFDataset):
             return [{"role": "user", "content": content_list}]
         else:
             return [{"role": "user", "content": prompt_str}]
+
+    @classmethod
+    async def process_vision_info(
+        cls,
+        messages: list[dict],
+        image_patch_size,
+        config: DictConfig,
+    ) -> tuple[list[Image.Image], list[tuple[torch.Tensor, dict]]]:
+        """Extract images and videos from messages. Derived from rl_dataset.py"""
+        set_pixels_for_vision_process(config)
+
+        images, videos = process_vision_info(messages, image_patch_size=image_patch_size, return_video_metadata=True)
+        return images, videos

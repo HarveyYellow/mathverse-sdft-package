@@ -138,6 +138,7 @@ if [ "$NODE_RANK" = "0" ]; then
         data.custom_cls.name="DocDataset" \
         data.train_files="$train_path" \
         data.val_files="$test_path" \
+        +data.use_generated_schema=True \
         data.train_max_samples=220000 \
         data.train_batch_size=128 \
         data.image_patch_size=16 \

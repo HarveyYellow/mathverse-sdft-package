@@ -4,6 +4,131 @@ from typing import Dict, List, Tuple
 from PIL import Image
 from qwen_vl_utils import smart_resize
 
+import os
+import random
+
+random.seed(42)
+
+from datasets import Features, Value, Sequence
+
+
+def get_type_feature(value):
+    """
+    递归将 Python 数据值转换为 Hugging Face datasets 的 Feature 对象。
+    """
+    if value is None:
+        return None  # 无法推断，标记为 None
+
+    if isinstance(value, bool):
+        return Value("bool")
+    elif isinstance(value, int):
+        return Value("int64")
+    elif isinstance(value, float):
+        return Value("float32")
+    elif isinstance(value, str):
+        # 简单的字符串
+        return Value("string")
+    elif isinstance(value, dict):
+        # 递归处理嵌套字典 (Struct)
+        return {k: get_type_feature(v) for k, v in value.items()}
+    elif isinstance(value, list):
+        # 处理列表 (Sequence)
+        if len(value) == 0:
+            return Sequence(Value("string"))  # 空列表默认当 string list 处理，防止报错
+        # 取列表第一个非空元素来推断类型
+        item_feature = get_type_feature(value[0])
+        return Sequence(item_feature)
+    else:
+        return Value("string")  # 兜底策略
+
+
+def merge_schemas(base_schema, new_schema):
+    """
+    递归合并两个 Schema（字典格式）。
+    策略：取并集。如果 base 中是 None，而被合并项有值，则更新。
+    """
+    if base_schema is None:
+        return new_schema
+    if new_schema is None:
+        return base_schema
+
+    # 如果两个都是字典（嵌套结构），递归合并
+    if isinstance(base_schema, dict) and isinstance(new_schema, dict):
+        all_keys = set(base_schema.keys()) | set(new_schema.keys())
+        merged = {}
+        for key in all_keys:
+            val_base = base_schema.get(key)
+            val_new = new_schema.get(key)
+            merged[key] = merge_schemas(val_base, val_new)
+        return merged
+
+    # 如果是非字典（Value 或 Sequence），以“有类型”的为准
+    # 这里简化处理：假设不存在类型冲突（例如一行是 int，一行是 str），
+    # 如果存在冲突，通常保留现有的或报错。这里我们假设新发现的结构更完整。
+    return base_schema
+
+
+def sample_lines_from_file(file_path, n_samples=100):
+    """
+    从大文件中随机采样 n 行，支持 jsonl/txt。
+    使用 seek 随机跳跃，不读取全文件，速度极快。
+    """
+    file_size = os.path.getsize(file_path)
+    lines = []
+
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        # 如果文件很小，直接全读并随机采样
+        if file_size < 10 * 1024 * 1024:  # 小于 10MB
+            all_lines = f.readlines()
+            # 过滤空行
+            all_lines = [l for l in all_lines if l.strip()]
+            return [
+                json.loads(l)
+                for l in random.sample(all_lines, min(len(all_lines), n_samples))
+            ]
+
+        # 大文件模式：随机 Seek
+        for _ in range(n_samples):
+            # 随机选一个字节位置
+            pos = random.randint(0, file_size - 1)
+            f.seek(pos)
+
+            # 丢弃第一行（因为 seek 极大概率落在行中间）
+            f.readline()
+
+            # 读取下一行完整的
+            line = f.readline()
+
+            # 如果 seek 到了文件末尾，可能读不到，重试或忽略
+            if line and line.strip():
+                try:
+                    lines.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass  # 忽略解析错误的行
+
+    return lines
+
+
+def generate_schema(file_path, samples=100):
+    """
+    主函数：读取文件 -> 采样 -> 推断合并 Schema -> 返回 Features
+    """
+    # 1. 随机采样数据
+    data_samples = sample_lines_from_file(file_path, n_samples=samples)
+    print(f"成功采样 {len(data_samples)} 行数据用于推断 Schema。")
+
+    # 2. 遍历样本，推断并合并 Schema
+    final_schema_dict = {}
+
+    for data in data_samples:
+        # 将当前行的数据转为 schema 结构
+        current_schema = get_type_feature(data)
+        # 合并到总 schema
+        final_schema_dict = merge_schemas(final_schema_dict, current_schema)
+
+    # 3. 转换为 Hugging Face Features 对象
+    return Features(final_schema_dict)
+
 
 def load_image(image: str) -> Image.Image:
     image = Image.open(image)
