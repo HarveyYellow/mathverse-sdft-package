@@ -121,8 +121,8 @@ class DocDataset(RLHFDataset):
         def func(example):
             data_source = example.get("attributes", {}).get("subtask", "doc2json")
             ground_truth = example[self.prompt_key][-1]["value"]
-            if example.get("objects") is not None:
-                objects = example["objects"]
+            objects = example.get("objects")
+            if objects and objects["ref"][0] != "none" and sum(objects["bbox"][0]) > 0:
                 # load images
                 images = load_images(example[self.image_key])
                 # normalize bbox

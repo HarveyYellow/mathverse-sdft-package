@@ -113,7 +113,7 @@ if [ "$NODE_RANK" = "0" ]; then
     ETP=${ETP:-1}
 
     train_path="/home/ma-user/work/data_mllm/new_datasets/swift_merged_datasets/version_v1.9/train_v1.9_sample_5pct_v2.jsonl"
-    test_path="/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/infinity_doc2_pdf2md_data_swift_sample3_v1.json"
+    test_path="/home/ma-user/work/data_mllm/new_datasets/swift_merged_datasets/version_v1.9/test_v1.9_sample_5pct_v2.jsonl"
 
     current_script="$(realpath "$0")"
     script_basename=$(basename "$current_script")
