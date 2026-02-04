@@ -34,7 +34,6 @@ from verl.utils.model import compute_position_id_with_mask
 from verl.utils.dataset.rl_dataset import RLHFDataset
 from verl.utils.dataset import vision_utils
 from verl.utils.dataset.inf_utils import (
-    generate_schema,
     load_images,
     normalize_bbox,
     replace_special_tokens,
@@ -115,8 +114,6 @@ class DocDataset(RLHFDataset):
         self.allowed_data_sources = config.get("allowed_data_sources", None)
         print(f"self.allowed_data_sources: {self.allowed_data_sources}")
 
-        self.use_generated_schema = config.get("use_generated_schema", False)
-
         super().__init__(data_files, tokenizer, config, processor, max_samples)
 
     def add_source_and_gt(self, dataset):
@@ -161,12 +158,7 @@ class DocDataset(RLHFDataset):
             # Refer to https://git.infly.tech/inf_algo/ms-swift/-/blob/main/swift/llm/dataset/loader.py?ref_type=heads#L208-209
             ext = os.path.splitext(data_file)[1].lstrip(".")
             file_type = {"jsonl": "json", "txt": "text"}.get(ext) or ext
-            if self.use_generated_schema:
-                features = generate_schema(data_file)
-                print(f"generated schema: {features}")
-                dataframe = datasets.load_dataset(file_type, data_files=data_file, features=features)["train"]
-            else:
-                dataframe = datasets.load_dataset(file_type, data_files=data_file)["train"]
+            dataframe = datasets.load_dataset(file_type, data_files=data_file)["train"]
             dataframes.append(dataframe)
         self.dataframe: datasets.Dataset = datasets.concatenate_datasets(dataframes)
 
