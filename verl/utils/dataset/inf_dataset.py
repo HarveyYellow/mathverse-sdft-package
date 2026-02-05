@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 from importlib import metadata
 from io import BytesIO
 from PIL import Image
-from qwen_vl_utils import fetch_image, vision_process
+from qwen_vl_utils import fetch_image
 
 
 def custom_process_image(
@@ -55,6 +55,28 @@ def custom_process_image(
 
 
 vision_utils.process_image = custom_process_image
+
+
+def set_pixels_for_vision_process(
+    config: DictConfig,
+) -> List[int]:
+    from qwen_vl_utils import vision_process
+
+    # set min pixels and max pixels
+    if metadata.version("qwen-vl-utils") >= "0.0.14":
+        patch_factor = 16 * 2
+        min_pixels = config.get("min_pixels", 4 * patch_factor**2)
+        max_pixels = config.get("max_pixels", 16384 * patch_factor**2)
+        vision_process.IMAGE_MIN_TOKEN_NUM = min_pixels // (patch_factor**2)
+        vision_process.IMAGE_MAX_TOKEN_NUM = max_pixels // (patch_factor**2)
+    else:
+        patch_factor = 14 * 2
+        min_pixels = config.get("min_pixels", 4 * patch_factor**2)
+        max_pixels = config.get("max_pixels", 16384 * patch_factor**2)
+        vision_process.MIN_PIXELS = min_pixels
+        vision_process.MAX_PIXELS = max_pixels
+
+    return patch_factor, min_pixels, max_pixels
 
 
 class DocDataset(RLHFDataset):
@@ -82,24 +104,15 @@ class DocDataset(RLHFDataset):
         processor: Optional[ProcessorMixin] = None,
         max_samples: int = -1,
     ):
-        # set min pixels and max pixels
-        if metadata.version("qwen-vl-utils") >= "0.0.14":
-            patch_factor = 16 * 2
-            self.min_pixels = config.get("min_pixels", 4 * patch_factor**2)
-            self.max_pixels = config.get("max_pixels", 16384 * patch_factor**2)
-            vision_process.IMAGE_MIN_TOKEN_NUM = self.min_pixels // (patch_factor**2)
-            vision_process.IMAGE_MAX_TOKEN_NUM = self.max_pixels // (patch_factor**2)
-        else:
-            patch_factor = 14 * 2
-            self.min_pixels = config.get("min_pixels", 4 * patch_factor**2)
-            self.max_pixels = config.get("max_pixels", 16384 * patch_factor**2)
-            vision_process.MIN_PIXELS = self.min_pixels
-            vision_process.MAX_PIXELS = self.max_pixels
-        self.patch_factor = patch_factor
+        self.patch_factor, self.min_pixels, self.max_pixels = set_pixels_for_vision_process(config)
 
         # set bbox format and norm bbox
         self.bbox_format = config.get("bbox_format", "new")
         self.norm_bbox = config.get("norm_bbox", "none")
+
+        # allowed data_source list to keep (None means keep all)
+        self.allowed_data_sources = config.get("allowed_data_sources", None)
+        print(f"self.allowed_data_sources: {self.allowed_data_sources}")
 
         super().__init__(data_files, tokenizer, config, processor, max_samples)
 
@@ -108,8 +121,8 @@ class DocDataset(RLHFDataset):
         def func(example):
             data_source = example.get("attributes", {}).get("subtask", "doc2json")
             ground_truth = example[self.prompt_key][-1]["value"]
-            if example.get("objects") is not None:
-                objects = example["objects"]
+            objects = example.get("objects")
+            if objects and objects["ref"][0] != "none" and sum(objects["bbox"][0]) > 0:
                 # load images
                 images = load_images(example[self.image_key])
                 # normalize bbox
@@ -129,6 +142,14 @@ class DocDataset(RLHFDataset):
             return example
 
         return dataset.map(func)
+
+    def filter_data_sources(self, dataset):
+        if self.allowed_data_sources is not None:
+            dataset = dataset.filter(
+                lambda x: x.get("attributes", {}).get("subtask", "doc2json") in self.allowed_data_sources
+            )
+            print(f"filtered data sources, dataset len: {len(dataset)}")
+        return dataset
 
     def _read_files_and_tokenize(self):
         dataframes = []
@@ -158,6 +179,8 @@ class DocDataset(RLHFDataset):
         self.dataframe = self.add_source_and_gt(self.dataframe)
         # filter long prompts
         self.dataframe = self.maybe_filter_out_long_prompts(self.dataframe)
+        # filter data sources
+        self.dataframe = self.filter_data_sources(self.dataframe)
 
     def _build_messages(self, example: dict[str, Any]) -> list[dict[str, Any]]:
         prompt_str: str = example.pop(self.prompt_key)[0]["value"]
@@ -170,7 +193,8 @@ class DocDataset(RLHFDataset):
             content_list = []
             for i, content in enumerate(prompt_str.split("<image>")):
                 if i != 0:
-                    content_list.append({"type": "image"})
+                    image_obj = Image.open(example[self.image_key][i - 1]).convert("RGB")
+                    content_list.append({"type": "image", "image": image_obj})
 
                 if content:
                     content_list.append({"type": "text", "text": content})
@@ -191,3 +215,18 @@ class DocDataset(RLHFDataset):
             return [{"role": "user", "content": content_list}]
         else:
             return [{"role": "user", "content": prompt_str}]
+
+    @classmethod
+    async def process_vision_info(
+        cls,
+        messages: list[dict],
+        image_patch_size,
+        config: DictConfig,
+    ) -> tuple[list[Image.Image], list[tuple[torch.Tensor, dict]]]:
+        """Extract images and videos from messages. Derived from rl_dataset.py"""
+        from qwen_vl_utils import process_vision_info
+
+        set_pixels_for_vision_process(config)
+
+        images, videos = process_vision_info(messages, image_patch_size=image_patch_size, return_video_metadata=True)
+        return images, videos
