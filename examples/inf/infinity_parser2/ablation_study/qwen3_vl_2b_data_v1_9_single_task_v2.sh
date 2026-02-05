@@ -118,10 +118,10 @@ if [ "$NODE_RANK" = "0" ]; then
     current_script="$(realpath "$0")"
     script_basename=$(basename "$current_script")
     project_name="infinity_parser2"
-    experiment_name="${script_basename%.*}"
-    reward_fn_path="examples/inf/reward_functions/infinity_parser2_multitask_rewards_v1.py"
     current_time=$(date "+%Y%m%d_%H%M%S")
-    experiment_dir="checkpoints/${project_name}/${experiment_name}_${current_time}"
+    experiment_name="${script_basename%.*}_${current_time}"
+    reward_fn_path="examples/inf/reward_functions/infinity_parser2_multitask_rewards_v1.py"
+    experiment_dir="checkpoints/${project_name}/${experiment_name}"
 
     sudo mkdir -p ${experiment_dir}
     sudo chmod -R 777 ${experiment_dir}
