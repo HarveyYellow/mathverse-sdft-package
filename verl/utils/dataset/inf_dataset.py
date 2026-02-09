@@ -175,6 +175,10 @@ class DocDataset(RLHFDataset):
             self.dataframe = self.dataframe.select(indices.tolist())
             print(f"selected {self.max_samples} random samples out of {total}")
 
+        if self.shuffle:
+            self.dataframe = self.dataframe.shuffle(seed=self.seed)
+            print("random shuffle the data")
+
         # add data source and ground_truth
         self.dataframe = self.add_source_and_gt(self.dataframe)
         # filter long prompts
