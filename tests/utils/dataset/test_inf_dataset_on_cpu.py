@@ -87,14 +87,14 @@ class TestDocDataset(unittest.TestCase):
     def test_load_single_data_files(self):
         """Test loading single data files."""
 
-        data_files = "/home/ma-user/work/data_mllm/datasets/Infinity-Doc2/document_parsing/labels/val_markdown_251103_sample3_v1.json"
+        data_files = "/home/ma-user/work/data_mllm/new_datasets/swift_merged_datasets/version_v1.9/test_v1.9_sample_5pct_v2.jsonl"
         doc_dataset = DocDataset(
             data_files=data_files,
             tokenizer=self.tokenizer,
             processor=self.processor,
             config=self.cfg,
         )
-        self.assertEqual(len(doc_dataset), 3)
+        self.assertEqual(len(doc_dataset), 39)
         self.assertTrue("raw_prompt" in doc_dataset[0])
         self.assertTrue("data_source" in doc_dataset[0])
         self.assertTrue("reward_model" in doc_dataset[0])
