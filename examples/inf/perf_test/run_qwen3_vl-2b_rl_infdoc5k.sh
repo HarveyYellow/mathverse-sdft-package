@@ -26,18 +26,26 @@ export PYTHONPATH="/home/ma-user/work/data_mllm/swift_share/Megatron-LM":$PYTHON
 echo "PYTHONPATH: $PYTHONPATH"
 
 if [[ -z ${MA_NUM_HOSTS} ]]; then
-    NNODES="1"
-    NODE_RANK="0"
-    MASTER_IP_ADDR="0.0.0.0"
-    MASTER_PORT="6379"
-    NGPUS_PER_NODE=$(nvidia-smi -L | wc -l)
-else
     NNODES=${MA_NUM_HOSTS:-"1"}
     NODE_RANK="$VC_TASK_INDEX"
     MASTER_DOMAIN_ADDR="${VC_WORKER_HOSTS%%,*}"
     MASTER_IP_ADDR=$(python -c "import socket; print(socket.gethostbyname('$MASTER_DOMAIN_ADDR'))" 2>/dev/null)
     MASTER_PORT="6379"
     NGPUS_PER_NODE="$MA_NUM_GPUS"
+elif [ -n "$PET_NNODES" ]; then
+    echo "Set env for qizhi"
+    NNODES="${PET_NNODES}"
+    NODE_RANK="${PET_NODE_RANK}"
+    MASTER_DOMAIN_ADDR="${MASTER_ADDR}"
+    MASTER_IP_ADDR=$(python -c "import socket; print(socket.gethostbyname('$MASTER_DOMAIN_ADDR'))" 2>/dev/null)
+    MASTER_PORT="6379"
+    NGPUS_PER_NODE=$(nvidia-smi -L | wc -l)
+else
+    NNODES="1"
+    NODE_RANK="0"
+    MASTER_IP_ADDR="0.0.0.0"
+    MASTER_PORT="6379"
+    NGPUS_PER_NODE=$(nvidia-smi -L | wc -l)
 fi
 
 echo "=== node info in modelarts ==="
