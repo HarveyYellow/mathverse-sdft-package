@@ -1,6 +1,4 @@
 # Large data files
-*.arrow
-*.parquet
 *.bin
 *.pt
 *.pth

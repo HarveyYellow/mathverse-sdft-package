@@ -2,6 +2,10 @@
 
 Self-distillation framework for visual math reasoning on the MathVerse dataset using Qwen3-VL-8B-Instruct. The system generates per-problem adaptive teacher prompts (correct CoT / error reflection / answer-only) and supports online feedback injection during training.
 
+## Data Notice
+
+> **The `.arrow` data files in this repository have been truncated to 50 samples each** (from the original ~2000+ samples) to keep the repository lightweight and enable quick case study inspection. These samples are sufficient for understanding the data format and schema, but are **not** suitable for training or full evaluation. To reproduce the full dataset, re-run the [data pipeline](#data-pipeline-3-step).
+
 ## Table of Contents
 
 - [Overview](#overview)
