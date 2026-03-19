@@ -1,0 +1,34 @@
+{
+  "citation": "",
+  "description": "",
+  "features": {
+    "question": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "answer": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "cot_response": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "desc_response": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "images": {
+      "feature": {
+        "_type": "Image"
+      },
+      "_type": "List"
+    },
+    "ground_truth": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": ""
+}
