@@ -15,11 +15,11 @@ os.environ["VLLM_TORCH_COMPILE_LEVEL"] = "0"
 
 import argparse
 import json
-import re
 from datasets import load_from_disk
 from vllm import LLM, SamplingParams
 from transformers import AutoProcessor
 from qwen_vl_utils import process_vision_info
+from mathruler.grader import extract_boxed_content, grade_answer
 
 # ======================== Config ========================
 MODEL_PATH = "/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-8B-Instruct"
@@ -39,89 +39,12 @@ args = parser.parse_args()
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 OUTPUT_PATH = f"{OUTPUT_DIR}/eval_shard{args.shard}.jsonl"
 
-# ======================== Answer Check (match_mathverse) ========================
-_MCQ = re.compile(r"^[A-Za-z]$")
-_OPT_LINE = re.compile(r"^([A-Fa-f])\s*[.:)]\s*(.+)$", re.MULTILINE)
-
-
-def _parse_mcq_options(question_text: str) -> dict:
-    mapping = {}
-    for m in _OPT_LINE.finditer(question_text):
-        letter = m.group(1).upper()
-        val = m.group(2).strip()
-        val_clean = (val.replace("\\", "").replace("$", "")
-                     .replace("\u00b0", "").replace("cm", "").replace("m", "")
-                     .replace("pi", "\u03c0").strip().rstrip(".").strip())
-        mapping[val_clean.lower()] = letter
-        try:
-            num = float(val_clean)
-            mapping[str(num)] = letter
-            if num == int(num):
-                mapping[str(int(num))] = letter
-        except (ValueError, TypeError):
-            pass
-        mapping[val.lower().strip()] = letter
-    return mapping
-
-
-def _normalize_pred(pred: str) -> str:
-    return (pred.replace("\\", "").replace("$", "")
-            .replace("\u00b0", "").replace("cm", "").replace("m", "")
-            .strip().rstrip(".").strip())
-
-
-def extract_boxed(text: str):
-    for pat in [
-        r"\\boxed\{([^}]*(?:\{[^}]*\}[^}]*)*)\}",
-        r"[/\\]box(?:ed)?\{([^}]+)\}",
-    ]:
-        m = re.search(pat, text)
-        if m:
-            return m.group(1).strip()
-    return None
-
-
-def match_mathverse(pred, gt, question=""):
-    if pred is None:
+# ======================== Answer Check (mathruler — same as GRPO training) ========================
+def check_answer(gold_str, model_output):
+    extracted = extract_boxed_content(model_output)
+    if not extracted:
         return False
-    pred, gt = pred.strip(), gt.strip()
-    if _MCQ.match(gt):
-        if pred.upper() == gt.upper():
-            return True
-        if _MCQ.match(pred):
-            return False
-        options = _parse_mcq_options(question)
-        pred_norm = _normalize_pred(pred).lower()
-        if options.get(pred_norm) == gt.upper():
-            return True
-        try:
-            pred_num = float(_normalize_pred(pred))
-            for val_str, letter in options.items():
-                if letter == gt.upper():
-                    try:
-                        if abs(float(val_str) - pred_num) < 1e-4:
-                            return True
-                    except (ValueError, TypeError):
-                        continue
-        except (ValueError, TypeError):
-            pass
-        return False
-    try:
-        return abs(float(pred) - float(gt)) < 1e-4
-    except (ValueError, TypeError):
-        pass
-    try:
-        from mathruler.grader import grade_answer
-        return grade_answer(pred, gt)
-    except Exception:
-        return pred.lower() == gt.lower()
-
-
-def check_answer(gold_str, model_output, question=""):
-    boxed = extract_boxed(model_output)
-    if not boxed:
-        return False
-    return match_mathverse(boxed, gold_str, question)
+    return grade_answer(extracted, gold_str)
 
 
 # ======================== Resume ========================
@@ -236,7 +159,7 @@ for chunk_start in range(0, len(batch_prompts), CHUNK_SIZE):
         question = batch_questions[gi]
 
         responses = [o.text for o in output.outputs]
-        correct_flags = [check_answer(answer, resp, question) for resp in responses]
+        correct_flags = [check_answer(answer, resp) for resp in responses]
 
         result = {
             "idx": idx,
