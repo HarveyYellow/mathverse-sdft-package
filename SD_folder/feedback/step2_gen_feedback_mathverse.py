@@ -1,23 +1,17 @@
-"""Step 2: Generate 8 reflections per all-wrong problem.
+"""Step 2 (v2): Generate 8 transferable feedbacks per all-wrong problem.
 
-Two modes via --truncate flag:
-  --truncate       : truncate student response to 1500 chars (default)
-  --no-truncate    : keep full student response
+New prompt design:
+  - Model first thinks (in <think> tags, discarded later)
+  - Then gives transferable feedback (in <feedback> tags, extracted for training)
+  - Feedback focuses on: what to pay attention to + how to avoid this type of error
+  - No problem-specific details (numbers, options, variable names)
 
 Uses vLLM with data parallel (1 GPU per shard).
 
 Usage:
-    # Truncated version:
     for SHARD in 0 1 2 3; do
-        CUDA_VISIBLE_DEVICES=$SHARD python step2_gen_reflection_mathverse.py \
-            --shard $SHARD --num_shards 4 --truncate &
-    done
-    wait
-
-    # No-truncate version:
-    for SHARD in 0 1 2 3; do
-        CUDA_VISIBLE_DEVICES=$SHARD python step2_gen_reflection_mathverse.py \
-            --shard $SHARD --num_shards 4 --no-truncate &
+        CUDA_VISIBLE_DEVICES=$SHARD python step2_gen_feedback_mathverse.py \
+            --shard $SHARD --num_shards 4 &
     done
     wait
 """
@@ -28,6 +22,7 @@ os.environ["VLLM_TORCH_COMPILE_LEVEL"] = "0"
 import argparse
 import json
 import glob
+import re
 from datasets import load_from_disk
 from vllm import LLM, SamplingParams
 from transformers import AutoProcessor
@@ -35,10 +30,10 @@ from qwen_vl_utils import process_vision_info
 
 # ======================== Config ========================
 MODEL_PATH = "/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-8B-Instruct"
-BASE = "/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl/SD_folder"
 DATASET_PATH = "/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/data/mathverse_SDFT"
+BASE = "/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl/SD_folder"
 EVAL_DIR = os.path.join(BASE, "mathverse_eval_results_vllm")
-NUM_REFLECTIONS = 8
+NUM_FEEDBACKS = 8
 MAX_NEW_TOKENS = 512
 CHUNK_SIZE = 2
 
@@ -46,31 +41,20 @@ CHUNK_SIZE = 2
 parser = argparse.ArgumentParser()
 parser.add_argument("--shard", type=int, required=True)
 parser.add_argument("--num_shards", type=int, default=4)
-parser.add_argument("--truncate", action="store_true", default=False,
-                    help="Truncate student response to 1500 chars")
+parser.add_argument("--truncate", action="store_true", default=True,
+                    help="Truncate student response to 1500 chars (default)")
 parser.add_argument("--no-truncate", action="store_true", default=False,
-                    help="Keep full student response (no truncation)")
+                    help="Keep full student response")
 args = parser.parse_args()
 
-# Determine truncation mode
-if args.no_truncate:
-    do_truncate = False
-elif args.truncate:
-    do_truncate = True
-else:
-    do_truncate = True  # default: truncate
+do_truncate = not args.no_truncate
 
-# Output dir based on mode
-if do_truncate:
-    OUTPUT_DIR = os.path.join(BASE, "mathverse_reflection_n8_truncated")
-else:
-    OUTPUT_DIR = os.path.join(BASE, "mathverse_reflection_n8_full")
-
+OUTPUT_DIR = os.path.join(BASE, "mathverse_feedback_v2")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-OUTPUT_PATH = f"{OUTPUT_DIR}/reflection_shard{args.shard}.jsonl"
+OUTPUT_PATH = f"{OUTPUT_DIR}/feedbacks_shard{args.shard}.jsonl"
 
-print(f"[Shard {args.shard}] Truncation mode: {'ON (1500 chars)' if do_truncate else 'OFF (full response)'}")
-print(f"[Shard {args.shard}] Output dir: {OUTPUT_DIR}")
+print(f"[Shard {args.shard}] Truncation: {'ON (1500 chars)' if do_truncate else 'OFF'}")
+print(f"[Shard {args.shard}] Output: {OUTPUT_PATH}")
 
 # ======================== Load eval results ========================
 print(f"[Shard {args.shard}] Loading eval results...")
@@ -85,7 +69,7 @@ for f in sorted(glob.glob(f"{EVAL_DIR}/eval_shard*.jsonl")):
 # Filter: all 8 wrong
 wrong_items = {idx: r for idx, r in eval_results.items() if r["num_correct_in_8"] == 0}
 all_wrong_indices = sorted(wrong_items.keys())
-print(f"[Shard {args.shard}] Total eval results: {len(eval_results)}, all-wrong problems: {len(all_wrong_indices)}")
+print(f"[Shard {args.shard}] Total eval results: {len(eval_results)}, all-wrong: {len(all_wrong_indices)}")
 
 # Shard
 shard_indices = all_wrong_indices[args.shard::args.num_shards]
@@ -120,74 +104,89 @@ llm = LLM(
     trust_remote_code=True,
     gpu_memory_utilization=0.6,
     enforce_eager=True,
+    limit_mm_per_prompt={"image": 5},
 )
 
 sampling_params = SamplingParams(
-    n=NUM_REFLECTIONS,
+    n=NUM_FEEDBACKS,
     temperature=0.7,
     top_p=0.95,
     max_tokens=MAX_NEW_TOKENS,
     frequency_penalty=0.3,
 )
 
-# ======================== Build prompts ========================
-REFLECTION_TEMPLATE = """You are a math teacher reviewing a student's wrong solution. Be brief and precise — your entire response must be under 150 words.
+# ======================== New Prompt ========================
+FEEDBACK_TEMPLATE = """You are a math teacher. A student made an error on the following problem.
 
 ## Problem
 {problem}
 
-## Student's Solution (WRONG)
+## Student's Wrong Solution
 {student_response}
 
 ## Correct Answer
 {gold_answer}
 
 ## Task
-Identify the specific error in 3 lines:
-1. **Error Type** (one of: Image Misreading / Theorem Misapplication / Calculation Error / Reasoning Loop / Variable Misassignment / Diagram Relationship Error / Option Mapping Error)
-2. **Error Detail**: One sentence pinpointing exactly where the reasoning went wrong.
-3. **Correction Hint**: One sentence telling the student how to fix it.
+First, think step by step about what type of mistake the student made.
+Then, provide a short, transferable piece of feedback that tells the student:
+- What they should pay attention to when facing this type of problem
+- How to check and correct this kind of mistake
 
-Do NOT re-solve the problem. Do NOT repeat yourself. Keep it short."""
+## Requirements
+- The feedback MUST be transferable to other problems of the same type
+- Do NOT mention any specific numbers, options, variable names, or details from this problem
+- Do NOT re-solve the problem or reveal the correct answer
+- Write the feedback as if you are giving a general study tip, not correcting this one problem
 
-print(f"[Shard {args.shard}] Building prompts...")
+## Output Format
+<think>
+(your reasoning about the student's error)
+</think>
+<feedback>
+(2-3 sentences: what to pay attention to + how to avoid this type of error in the future)
+</feedback>"""
+
+
+def extract_feedback(text):
+    """Extract content from <feedback> tags."""
+    m = re.search(r"<feedback>\s*(.*?)\s*</feedback>", text, re.DOTALL)
+    if m:
+        return m.group(1).strip()
+    return None
+
+
+# ======================== Helper: build prompt for one index ========================
 processor = AutoProcessor.from_pretrained(MODEL_PATH)
 
-batch_prompts = []
-batch_indices = []
-batch_meta = []
 
-for idx in pending_indices:
+def build_prompt(idx):
+    """Build a single prompt on-the-fly to avoid holding all in memory."""
     sample = ds[idx]
     question = sample["question"]
     answer = sample["answer"]
     images = sample["images"]
     eval_item = wrong_items[idx]
 
-    # Pick the shortest wrong response
     student_resp = min(eval_item["responses"], key=len)
     if len(student_resp) < 200:
         student_resp = eval_item["responses"][0]
 
-    # Truncate if enabled
     if do_truncate and len(student_resp) > 1500:
         student_resp = student_resp[:1500] + "\n... [truncated]"
 
-    reflection_text = REFLECTION_TEMPLATE.format(
+    feedback_text = FEEDBACK_TEMPLATE.format(
         problem=question.strip(),
         student_response=student_resp,
         gold_answer=answer,
     )
 
-    # Build multimodal message
     content = []
     for img in images:
         content.append({"type": "image", "image": img})
-    content.append({"type": "text", "text": reflection_text})
+    content.append({"type": "text", "text": feedback_text})
 
-    messages = [
-        {"role": "user", "content": content},
-    ]
+    messages = [{"role": "user", "content": content}]
 
     prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     img_inputs, _ = process_vision_info(messages)
@@ -196,25 +195,27 @@ for idx in pending_indices:
     if img_inputs:
         mm_data["image"] = img_inputs
 
-    batch_prompts.append({
-        "prompt": prompt,
-        "multi_modal_data": mm_data,
-    })
-    batch_indices.append(idx)
-    batch_meta.append({
-        "idx": idx,
-        "question": question,
-        "gold_answer": answer,
-    })
+    return (
+        {"prompt": prompt, "multi_modal_data": mm_data},
+        {"idx": idx, "question": question, "gold_answer": answer},
+    )
 
-# ======================== Batch Inference ========================
-print(f"[Shard {args.shard}] Generating {NUM_REFLECTIONS} reflections each for {len(batch_prompts)} problems (chunk_size={CHUNK_SIZE})...")
+
+# ======================== Streaming Inference ========================
+print(f"[Shard {args.shard}] Generating {NUM_FEEDBACKS} feedbacks each for {len(pending_indices)} problems (chunk_size={CHUNK_SIZE})...")
 total_done = len(completed)
 
-for chunk_start in range(0, len(batch_prompts), CHUNK_SIZE):
-    chunk_end = min(chunk_start + CHUNK_SIZE, len(batch_prompts))
-    chunk_prompts = batch_prompts[chunk_start:chunk_end]
-    chunk_meta = batch_meta[chunk_start:chunk_end]
+for chunk_start in range(0, len(pending_indices), CHUNK_SIZE):
+    chunk_end = min(chunk_start + CHUNK_SIZE, len(pending_indices))
+    chunk_indices = pending_indices[chunk_start:chunk_end]
+
+    # Build prompts only for this chunk
+    chunk_prompts = []
+    chunk_meta = []
+    for idx in chunk_indices:
+        prompt, meta = build_prompt(idx)
+        chunk_prompts.append(prompt)
+        chunk_meta.append(meta)
 
     try:
         outputs = llm.generate(chunk_prompts, sampling_params)
@@ -224,16 +225,22 @@ for chunk_start in range(0, len(batch_prompts), CHUNK_SIZE):
         for i, (prompt, meta) in enumerate(zip(chunk_prompts, chunk_meta)):
             try:
                 single_out = llm.generate([prompt], sampling_params)
-                reflections = [o.text for o in single_out[0].outputs]
+                raw_outputs = [o.text for o in single_out[0].outputs]
             except Exception as e2:
                 print(f"[Shard {args.shard}]   idx={meta['idx']} SKIPPED: {e2}")
-                reflections = ["[GENERATION_ERROR]"] * NUM_REFLECTIONS
+                raw_outputs = ["[GENERATION_ERROR]"] * NUM_FEEDBACKS
+
+            feedbacks = []
+            for raw in raw_outputs:
+                fb = extract_feedback(raw)
+                feedbacks.append(fb if fb else raw)
 
             result = {
                 "idx": meta["idx"],
                 "question": meta["question"],
                 "gold_answer": meta["gold_answer"],
-                "reflections": reflections,
+                "feedbacks": feedbacks,
+                "raw_outputs": raw_outputs,
             }
             with open(OUTPUT_PATH, "a") as f:
                 f.write(json.dumps(result, ensure_ascii=False) + "\n")
@@ -243,14 +250,20 @@ for chunk_start in range(0, len(batch_prompts), CHUNK_SIZE):
         continue
 
     for i, output in enumerate(outputs):
-        reflections = [o.text for o in output.outputs]
+        raw_outputs = [o.text for o in output.outputs]
         meta = chunk_meta[i]
+
+        feedbacks = []
+        for raw in raw_outputs:
+            fb = extract_feedback(raw)
+            feedbacks.append(fb if fb else raw)
 
         result = {
             "idx": meta["idx"],
             "question": meta["question"],
             "gold_answer": meta["gold_answer"],
-            "reflections": reflections,
+            "feedbacks": feedbacks,
+            "raw_outputs": raw_outputs,
         }
 
         with open(OUTPUT_PATH, "a") as f:

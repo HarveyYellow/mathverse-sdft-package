@@ -4,22 +4,16 @@
 # Step 2: Generate reflections for all-wrong problems (truncated + full versions)
 # Step 3: Build training datasets
 #
-# Usage: bash /scratch/jh19696/Self-Distillation/run_mathverse_data_pipeline.sh
+# Usage: bash SD_folder/scripts/run_mathverse_data_pipeline.sh
 
 set -euo pipefail
 export TORCH_COMPILE_DISABLE=1
 export VLLM_TORCH_COMPILE_LEVEL=0
 
-cd /scratch/jh19696/Self-Distillation
+BASE=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl/SD_folder
+MODEL=/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-8B-Instruct
 
-# Copy model to lscratch if not already there
-if [ ! -d "/lscratch/jh19696/Qwen3-VL-8B-Instruct" ]; then
-    echo "Copying model to /lscratch/jh19696/ ..."
-    cp -r /scratch/jh19696/models/Qwen3-VL-8B-Instruct /lscratch/jh19696/
-    echo "Model copied."
-else
-    echo "Model already exists at /lscratch/jh19696/Qwen3-VL-8B-Instruct"
-fi
+cd "$BASE"
 
 # ==================== Step 1: Evaluate training set ====================
 echo ""
@@ -28,7 +22,7 @@ echo "  Step 1: Evaluate training set (n=8)"
 echo "=========================================="
 
 for SHARD in 0 1 2 3; do
-    CUDA_VISIBLE_DEVICES=$SHARD python step1_eval_mathverse.py \
+    CUDA_VISIBLE_DEVICES=$SHARD python data_pipeline/step1_eval_mathverse.py \
         --shard $SHARD --num_shards 4 &
 done
 wait
@@ -60,7 +54,7 @@ echo "  Step 2a: Generate reflections (truncated)"
 echo "=========================================="
 
 for SHARD in 0 1 2 3; do
-    CUDA_VISIBLE_DEVICES=$SHARD python step2_gen_reflection_mathverse.py \
+    CUDA_VISIBLE_DEVICES=$SHARD python data_pipeline/step2_gen_reflection_mathverse.py \
         --shard $SHARD --num_shards 4 --truncate &
 done
 wait
@@ -74,7 +68,7 @@ echo "  Step 2b: Generate reflections (no truncation)"
 echo "=========================================="
 
 for SHARD in 0 1 2 3; do
-    CUDA_VISIBLE_DEVICES=$SHARD python step2_gen_reflection_mathverse.py \
+    CUDA_VISIBLE_DEVICES=$SHARD python data_pipeline/step2_gen_reflection_mathverse.py \
         --shard $SHARD --num_shards 4 --no-truncate &
 done
 wait
@@ -88,13 +82,13 @@ echo "  Step 3: Build training datasets"
 echo "=========================================="
 
 echo "  Building truncated version..."
-python step3_build_mathverse_train.py \
+python data_pipeline/step3_build_mathverse_train.py \
     --reflection_dir mathverse_reflection_n8_truncated \
     --suffix _trunc
 
 echo ""
 echo "  Building full (no truncation) version..."
-python step3_build_mathverse_train.py \
+python data_pipeline/step3_build_mathverse_train.py \
     --reflection_dir mathverse_reflection_n8_full \
     --suffix _full
 

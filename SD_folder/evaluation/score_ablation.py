@@ -6,7 +6,7 @@ import os
 
 from mathruler.grader import extract_boxed_content, grade_answer
 
-RESULT_DIR = "/scratch/jh19696/eval_mathverse_results"
+RESULT_DIR = "/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl/SD_folder/eval_results"
 PATTERNS = ["sd_ans_only_ablation_*.json"]
 
 def rescore_greedy(details):

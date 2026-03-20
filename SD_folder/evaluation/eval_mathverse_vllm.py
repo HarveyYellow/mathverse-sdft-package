@@ -12,7 +12,7 @@ from transformers import AutoProcessor
 from qwen_vl_utils import process_vision_info
 from mathruler.grader import extract_boxed_content, grade_answer
 
-TEST_DATA = "/scratch/jh19696/Self-Distillation/data/sdft_mathverse/test"
+TEST_DATA = "/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/data/mathverse_SDFT/test"
 MAX_NEW_TOKENS = 2048
 BATCH_SIZE = 16
 

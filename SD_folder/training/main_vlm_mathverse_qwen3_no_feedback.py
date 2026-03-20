@@ -8,7 +8,7 @@ Same as main_vlm_mathverse_qwen3.py but uses base DistilTrainer
 Usage:
     accelerate launch --config_file accelerate_config_gqa.yaml \
         main_vlm_mathverse_qwen3_no_feedback.py \
-        --model_name /lscratch/jh19696/Qwen3-VL-8B-Instruct \
+        --model_name /home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-8B-Instruct \
         --data_dir data/mathverse_sdft_ans_only_ablation \
         --output_dir outputs/mathverse_ans_only_ablation \
         --num_train_epochs 2 --learning_rate 1e-6 \
@@ -115,7 +115,7 @@ def parse_args():
     p.add_argument("--ref_model_mixup_alpha", type=float, default=0.01)
     p.add_argument("--output_dir", type=str, required=True)
     p.add_argument("--model_name", type=str,
-                    default="/lscratch/jh19696/Qwen3-VL-8B-Instruct")
+                    default="/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-8B-Instruct")
     p.add_argument("--data_dir", type=str, required=True,
                     help="Path to dataset dir (e.g., data/mathverse_sdft_ans_only_ablation)")
     p.add_argument("--seed", type=int, default=42)

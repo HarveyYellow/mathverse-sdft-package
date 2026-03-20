@@ -6,25 +6,21 @@
 #   4. Self-Distill ref_ans_full (2 epochs)
 #   5. GRPO (4 epochs)
 #
-# Usage: nohup bash /scratch/jh19696/run_all_mathverse_training.sh > /scratch/jh19696/train_mathverse.log 2>&1 &
+# Usage: nohup bash SD_folder/scripts/run_all_mathverse_training.sh \
+#            > /inspire/sfs/project/inf-multimodal/public/jingyuanhuang/train_mathverse.log 2>&1 &
 
 set -euo pipefail
+
+BASE=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl/SD_folder
+VERL_ROOT=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl
+MODEL=/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-8B-Instruct
 
 export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
 export DS_BUILD_OPS=0
 export PYTORCH_ALLOC_CONF=expandable_segments:True
-export TRITON_CACHE_DIR=/scratch/jh19696/.triton_cache
-export HF_DATASETS_CACHE=/scratch/jh19696/datasets/hf_cache
-
-MODEL=/lscratch/jh19696/Qwen3-VL-8B-Instruct
-
-# Copy model to lscratch if needed
-if [ ! -d "$MODEL" ]; then
-    echo "Copying model to /lscratch/jh19696/ ..."
-    cp -r /scratch/jh19696/models/Qwen3-VL-8B-Instruct /lscratch/jh19696/
-    echo "Model copied."
-fi
+export TRITON_CACHE_DIR=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/.triton_cache
+export HF_DATASETS_CACHE=/home/ma-user/work/hf_cache
 
 # ==================== Step 1: Self-Distillation ref_only_trunc (2 epochs) ====================
 echo ""
@@ -32,12 +28,12 @@ echo "=========================================="
 echo "  Step 1/5: Self-Distillation ref_only_trunc (2 epochs)"
 echo "=========================================="
 
-rm -rf /scratch/jh19696/datasets/hf_cache/*
-cd /scratch/jh19696/Self-Distillation
+rm -rf /home/ma-user/work/hf_cache/* 2>/dev/null || true
+cd "$BASE"
 
 accelerate launch \
-    --config_file accelerate_config_gqa.yaml \
-    main_vlm_mathverse_qwen3.py \
+    --config_file config/accelerate_config_gqa.yaml \
+    training/main_vlm_mathverse_qwen3.py \
     --model_name "$MODEL" \
     --data_dir data/mathverse_sdft_ref_only_trunc \
     --output_dir outputs/mathverse_ref_only_trunc \
@@ -55,12 +51,12 @@ echo "=========================================="
 echo "  Step 2/5: Self-Distillation ref_ans_trunc (2 epochs)"
 echo "=========================================="
 
-rm -rf /scratch/jh19696/datasets/hf_cache/*
-cd /scratch/jh19696/Self-Distillation
+rm -rf /home/ma-user/work/hf_cache/* 2>/dev/null || true
+cd "$BASE"
 
 accelerate launch \
-    --config_file accelerate_config_gqa.yaml \
-    main_vlm_mathverse_qwen3.py \
+    --config_file config/accelerate_config_gqa.yaml \
+    training/main_vlm_mathverse_qwen3.py \
     --model_name "$MODEL" \
     --data_dir data/mathverse_sdft_ref_ans_trunc \
     --output_dir outputs/mathverse_ref_ans_trunc \
@@ -78,12 +74,12 @@ echo "=========================================="
 echo "  Step 3/5: Self-Distillation ref_only_full (2 epochs)"
 echo "=========================================="
 
-rm -rf /scratch/jh19696/datasets/hf_cache/*
-cd /scratch/jh19696/Self-Distillation
+rm -rf /home/ma-user/work/hf_cache/* 2>/dev/null || true
+cd "$BASE"
 
 accelerate launch \
-    --config_file accelerate_config_gqa.yaml \
-    main_vlm_mathverse_qwen3.py \
+    --config_file config/accelerate_config_gqa.yaml \
+    training/main_vlm_mathverse_qwen3.py \
     --model_name "$MODEL" \
     --data_dir data/mathverse_sdft_ref_only_full \
     --output_dir outputs/mathverse_ref_only_full \
@@ -101,12 +97,12 @@ echo "=========================================="
 echo "  Step 4/5: Self-Distillation ref_ans_full (2 epochs)"
 echo "=========================================="
 
-rm -rf /scratch/jh19696/datasets/hf_cache/*
-cd /scratch/jh19696/Self-Distillation
+rm -rf /home/ma-user/work/hf_cache/* 2>/dev/null || true
+cd "$BASE"
 
 accelerate launch \
-    --config_file accelerate_config_gqa.yaml \
-    main_vlm_mathverse_qwen3.py \
+    --config_file config/accelerate_config_gqa.yaml \
+    training/main_vlm_mathverse_qwen3.py \
     --model_name "$MODEL" \
     --data_dir data/mathverse_sdft_ref_ans_full \
     --output_dir outputs/mathverse_ref_ans_full \
@@ -125,11 +121,10 @@ echo "  Step 5/5: GRPO (4 epochs)"
 echo "=========================================="
 
 # Clean caches before GRPO
-rm -rf /scratch/jh19696/datasets/hf_cache/*
+rm -rf /home/ma-user/work/hf_cache/* 2>/dev/null || true
 rm -rf /tmp/ray 2>/dev/null || true
 
-# Must cd to verl_clean for correct module resolution
-cd /scratch/jh19696/verl_clean/examples/grpo_trainer
+cd "$VERL_ROOT/examples/grpo_trainer"
 
 TRAIN_PARQUET=$HOME/data/mathverse/train.parquet
 TEST_PARQUET=$HOME/data/mathverse/test.parquet
@@ -138,8 +133,8 @@ TEST_PARQUET=$HOME/data/mathverse/test.parquet
 echo "Generating parquet data..."
 rm -rf $HOME/data/mathverse
 mkdir -p $HOME/data/mathverse
-python3 /scratch/jh19696/verl_clean/examples/data_preprocess/mathverse.py \
-    --local_dataset_path /scratch/jh19696/Self-Distillation/data/sdft_mathverse \
+python3 "$VERL_ROOT/examples/data_preprocess/mathverse.py" \
+    --local_dataset_path "/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/data/mathverse_SDFT" \
     --local_save_dir $HOME/data/mathverse \
     --model_path $MODEL \
     --max_prompt_length 4096

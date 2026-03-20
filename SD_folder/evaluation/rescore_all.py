@@ -3,7 +3,7 @@ import json, glob, os
 
 from mathruler.grader import extract_boxed_content, grade_answer
 
-RESULTS_DIR = "/scratch/jh19696/eval_mathverse_results"
+RESULTS_DIR = "/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl/SD_folder/eval_results"
 
 # Only re-score epoch-level results
 targets = [

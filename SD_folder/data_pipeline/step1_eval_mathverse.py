@@ -22,9 +22,10 @@ from transformers import AutoProcessor
 from qwen_vl_utils import process_vision_info
 
 # ======================== Config ========================
-MODEL_PATH = "/lscratch/jh19696/Qwen3-VL-8B-Instruct"
-DATASET_PATH = "/scratch/jh19696/Self-Distillation/data/sdft_mathverse"
-OUTPUT_DIR = "/scratch/jh19696/Self-Distillation/mathverse_eval_results_vllm"
+MODEL_PATH = "/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-8B-Instruct"
+BASE = "/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl/SD_folder"
+DATASET_PATH = "/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/data/mathverse_SDFT"
+OUTPUT_DIR = os.path.join(BASE, "mathverse_eval_results_vllm")
 NUM_RESPONSES = 8
 MAX_NEW_TOKENS = 2048
 CHUNK_SIZE = 16

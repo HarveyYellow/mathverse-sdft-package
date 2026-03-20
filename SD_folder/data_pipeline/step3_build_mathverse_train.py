@@ -31,11 +31,12 @@ parser.add_argument("--suffix", type=str, default="",
 args = parser.parse_args()
 
 # ======================== Paths ========================
-DATASET_PATH = "/scratch/jh19696/Self-Distillation/data/sdft_mathverse"
-EVAL_DIR = "/scratch/jh19696/Self-Distillation/mathverse_eval_results_vllm"
-REFLECTION_DIR = os.path.join("/scratch/jh19696/Self-Distillation", args.reflection_dir)
-OUTPUT_REF_ONLY = f"/scratch/jh19696/Self-Distillation/data/mathverse_sdft_ref_only_{args.suffix}/train"
-OUTPUT_REF_ANS = f"/scratch/jh19696/Self-Distillation/data/mathverse_sdft_ref_ans_{args.suffix}/train"
+BASE = "/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl/SD_folder"
+DATASET_PATH = "/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/data/mathverse_SDFT"
+EVAL_DIR = os.path.join(BASE, "mathverse_eval_results_vllm")
+REFLECTION_DIR = os.path.join(BASE, args.reflection_dir)
+OUTPUT_REF_ONLY = os.path.join(BASE, f"data/mathverse_sdft_ref_only_{args.suffix}/train")
+OUTPUT_REF_ANS = os.path.join(BASE, f"data/mathverse_sdft_ref_ans_{args.suffix}/train")
 
 print(f"Reflection dir: {REFLECTION_DIR}")
 print(f"Output ref_only: {OUTPUT_REF_ONLY}")

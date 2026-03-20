@@ -5,26 +5,30 @@
 # Data: ans_only_ablation (reflection_with_answer → answer_only)
 #
 # Usage:
-#   nohup bash /scratch/jh19696/Self-Distillation/run_mathverse_no_feedback.sh \
-#       > /scratch/jh19696/train_mathverse_no_feedback.log 2>&1 &
+#   nohup bash SD_folder/scripts/run_mathverse_no_feedback.sh \
+#       > /inspire/sfs/project/inf-multimodal/public/jingyuanhuang/train_mathverse_no_feedback.log 2>&1 &
 # ============================================================================
 
 set -euo pipefail
-cd /scratch/jh19696/Self-Distillation
+
+BASE=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl/SD_folder
+MODEL=/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-8B-Instruct
+
+cd "$BASE"
 
 export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
 export DS_BUILD_OPS=0
 export PYTORCH_ALLOC_CONF=expandable_segments:True
-export TRITON_CACHE_DIR=/scratch/jh19696/.triton_cache
-export HF_DATASETS_CACHE=/scratch/jh19696/datasets/hf_cache
+export TRITON_CACHE_DIR=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/.triton_cache
+export HF_DATASETS_CACHE=/home/ma-user/work/hf_cache
 
-rm -rf /scratch/jh19696/datasets/hf_cache/*
+rm -rf /home/ma-user/work/hf_cache/* 2>/dev/null || true
 
 accelerate launch \
-    --config_file accelerate_config_gqa.yaml \
-    main_vlm_mathverse_qwen3_no_feedback.py \
-    --model_name /lscratch/jh19696/Qwen3-VL-8B-Instruct \
+    --config_file config/accelerate_config_gqa.yaml \
+    training/main_vlm_mathverse_qwen3_no_feedback.py \
+    --model_name "$MODEL" \
     --data_dir data/mathverse_sdft_ans_only_ablation \
     --output_dir outputs/mathverse_ans_only_ablation \
     --num_train_epochs 2 \

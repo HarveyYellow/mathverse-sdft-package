@@ -6,58 +6,39 @@
 #
 # Skips models that already have results (checks for _greedy.json / _sampling.json)
 #
-# Usage: nohup bash /scratch/jh19696/run_eval_epoch_only.sh > /scratch/jh19696/eval_epoch_only.log 2>&1 &
+# Usage: nohup bash SD_folder/scripts/run_eval_epoch_only.sh \
+#            > /inspire/sfs/project/inf-multimodal/public/jingyuanhuang/eval_epoch_only.log 2>&1 &
 
 set -euo pipefail
+
+BASE=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl/SD_folder
+VERL_ROOT=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl
 
 export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
 export DS_BUILD_OPS=0
 export PYTORCH_ALLOC_CONF=expandable_segments:True
-export TRITON_CACHE_DIR=/scratch/jh19696/.triton_cache
-export HF_DATASETS_CACHE=/scratch/jh19696/datasets/hf_cache
+export TRITON_CACHE_DIR=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/.triton_cache
+export HF_DATASETS_CACHE=/home/ma-user/work/hf_cache
 export TORCH_COMPILE_DISABLE=1
 export VLLM_TORCH_COMPILE_LEVEL=0
 
-BASE_MODEL=/lscratch/jh19696/Qwen3-VL-8B-Instruct
-SD_OUT=/scratch/jh19696/Self-Distillation/outputs
-GRPO_CKPT=/scratch/jh19696/verl_clean/examples/grpo_trainer/checkpoints/verl_grpo_mathverse/qwen3_vl_8b_grpo_mathverse
-EVAL_TMP=/lscratch/jh19696/eval_tmp
-RESULTS_DIR=/scratch/jh19696/eval_mathverse_results
-EVAL_PY=/scratch/jh19696/eval_mathverse_vllm.py
+BASE_MODEL=/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-8B-Instruct
+SD_OUT=$BASE/outputs
+GRPO_CKPT=$VERL_ROOT/examples/grpo_trainer/checkpoints/verl_grpo_mathverse/qwen3_vl_8b_grpo_mathverse
+RESULTS_DIR=$BASE/eval_results
+EVAL_PY=$BASE/evaluation/eval_mathverse_vllm.py
 
 mkdir -p "$RESULTS_DIR"
-
-# Copy base model if needed
-if [ ! -d "$BASE_MODEL" ]; then
-    echo "Copying base model to /lscratch..."
-    cp -r /scratch/jh19696/models/Qwen3-VL-8B-Instruct /lscratch/jh19696/
-fi
 
 # ==================== Helper: evaluate one model (greedy + sampling) ====================
 eval_one() {
     local label="$1"
-    local src="$2"
+    local model_dir="$2"
     local need_processor="$3"  # "yes" or "no"
 
     echo ""
     echo ">>> Evaluating: $label (greedy + sampling)"
-
-    # Determine model directory
-    if [[ "$src" == /lscratch/* ]]; then
-        local model_dir="$src"
-        local cleanup="no"
-    else
-        rm -rf "$EVAL_TMP"
-        mkdir -p "$EVAL_TMP"
-        find "$src" -maxdepth 1 \( \
-            -name "*.safetensors" -o -name "*.json" -o -name "*.txt" -o \
-            -name "*.jinja" -o -name "merges.txt" -o -name "vocab.json" -o \
-            -name "*.safetensors.index.json" -o -name "*.model" \
-        \) -exec cp {} "$EVAL_TMP/" \;
-        local model_dir="$EVAL_TMP"
-        local cleanup="yes"
-    fi
 
     local proc_arg=""
     if [ "$need_processor" = "yes" ]; then
@@ -88,10 +69,7 @@ eval_one() {
             $proc_arg
     fi
 
-    if [ "$cleanup" = "yes" ]; then
-        rm -rf "$EVAL_TMP"
-        echo "  $label done, /lscratch cleaned."
-    fi
+    echo "  $label done."
 }
 
 # ============================================================
@@ -112,7 +90,7 @@ echo "######################################################"
 echo "  Evaluating GRPO Epoch Checkpoints (step 17,34,51,68)"
 echo "######################################################"
 
-cd /scratch/jh19696/verl_clean
+cd "$VERL_ROOT"
 
 for step_num in 17 34 51 68; do
     step_dir="$GRPO_CKPT/global_step_${step_num}"

@@ -8,21 +8,24 @@
 # All 3 trainings: 2 epochs, no freeze_vision, batch=64, lr=1e-6
 #
 # Usage:
-#   nohup bash /scratch/jh19696/Self-Distillation/run_ablation_ans_only.sh \
-#       > /scratch/jh19696/ablation_ans_only.log 2>&1 &
+#   nohup bash SD_folder/scripts/run_ablation_ans_only.sh \
+#       > /inspire/sfs/project/inf-multimodal/public/jingyuanhuang/ablation_ans_only.log 2>&1 &
 # ============================================================================
 
 set -euo pipefail
-cd /scratch/jh19696/Self-Distillation
+
+BASE=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/verl/SD_folder
+MODEL=/home/ma-user/work/share_base_models/Qwen3-VL/Qwen3-VL-8B-Instruct
+
+cd "$BASE"
 
 export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
 export DS_BUILD_OPS=0
 export PYTORCH_ALLOC_CONF=expandable_segments:True
-export TRITON_CACHE_DIR=/scratch/jh19696/.triton_cache
-export HF_DATASETS_CACHE=/scratch/jh19696/datasets/hf_cache
+export TRITON_CACHE_DIR=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/.triton_cache
+export HF_DATASETS_CACHE=/home/ma-user/work/hf_cache
 
-MODEL=/lscratch/jh19696/Qwen3-VL-8B-Instruct
 EPOCHS=2
 
 # ==================== Step 0: Build ablation datasets ====================
@@ -36,8 +39,8 @@ from datasets import load_from_disk, Dataset
 from collections import Counter
 
 for name, path in [
-    ('mathverse', '/scratch/jh19696/Self-Distillation/data/mathverse_sdft_ref_ans_trunc/train'),
-    ('geometry3k', '/scratch/jh19696/Self-Distillation/data/geometry3k_sdft_ref_ans/train'),
+    ('mathverse', '$BASE/data/mathverse_sdft_ref_ans_trunc/train'),
+    ('geometry3k', '$BASE/data/geometry3k_sdft_ref_ans/train'),
 ]:
     ds = load_from_disk(path)
     print(f'=== {name}: {len(ds)} samples ===')
@@ -53,7 +56,7 @@ for name, path in [
             changed += 1
         records.append(item)
 
-    out_dir = f'/scratch/jh19696/Self-Distillation/data/{name}_sdft_ans_only_ablation/train'
+    out_dir = f'$BASE/data/{name}_sdft_ans_only_ablation/train'
     new_ds = Dataset.from_list(records)
     new_ds.save_to_disk(out_dir)
     print(f'  Changed {changed} reflection -> answer_only')
@@ -70,11 +73,11 @@ echo "=========================================="
 echo "  Step 1: Train MathVerse ans_only_ablation (2 epochs)"
 echo "=========================================="
 
-rm -rf /scratch/jh19696/datasets/hf_cache/*
+rm -rf /home/ma-user/work/hf_cache/* 2>/dev/null || true
 
 accelerate launch \
-    --config_file accelerate_config_gqa.yaml \
-    main_vlm_mathverse_qwen3_no_feedback.py \
+    --config_file config/accelerate_config_gqa.yaml \
+    training/main_vlm_mathverse_qwen3_no_feedback.py \
     --model_name "$MODEL" \
     --data_dir data/mathverse_sdft_ans_only_ablation \
     --output_dir outputs/mathverse_ans_only_ablation \
@@ -92,11 +95,11 @@ echo "=========================================="
 echo "  Step 2: Train Geo3k ans_only_ablation (2 epochs)"
 echo "=========================================="
 
-rm -rf /scratch/jh19696/datasets/hf_cache/*
+rm -rf /home/ma-user/work/hf_cache/* 2>/dev/null || true
 
 accelerate launch \
-    --config_file accelerate_config_gqa.yaml \
-    main_vlm_geometry3k_no_feedback.py \
+    --config_file config/accelerate_config_gqa.yaml \
+    training/main_vlm_geometry3k_no_feedback.py \
     --model_name "$MODEL" \
     --data_dir data/geometry3k_sdft_ans_only_ablation \
     --output_dir outputs/geo3k_ans_only_ablation \
@@ -114,11 +117,11 @@ echo "=========================================="
 echo "  Step 3: Train Geo3k ref_ans (with feedback, no freeze_vision, 2 epochs)"
 echo "=========================================="
 
-rm -rf /scratch/jh19696/datasets/hf_cache/*
+rm -rf /home/ma-user/work/hf_cache/* 2>/dev/null || true
 
 accelerate launch \
-    --config_file accelerate_config_gqa.yaml \
-    main_vlm_geometry3k.py \
+    --config_file config/accelerate_config_gqa.yaml \
+    training/main_vlm_geometry3k.py \
     --model_name "$MODEL" \
     --data_dir data/geometry3k_sdft_ref_ans \
     --output_dir outputs/geo3k_ref_ans_no_freeze \
