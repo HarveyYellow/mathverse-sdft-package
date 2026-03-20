@@ -1,0 +1,20 @@
+{
+  "_data_files": [
+    {
+      "filename": "data-00000-of-00001.arrow"
+    }
+  ],
+  "_fingerprint": "2f49082e8c6bce06",
+  "_format_columns": [
+    "answer",
+    "cot_response",
+    "desc_response",
+    "ground_truth",
+    "images",
+    "question"
+  ],
+  "_format_kwargs": {},
+  "_format_type": null,
+  "_output_all_columns": false,
+  "_split": null
+}

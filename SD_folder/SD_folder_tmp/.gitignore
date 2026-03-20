@@ -1,0 +1,18 @@
+# Large data files
+*.bin
+*.pt
+*.pth
+*.safetensors
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.eggs/
+
+# Environment
+.env
+.venv/
+
+# OS
+.DS_Store
