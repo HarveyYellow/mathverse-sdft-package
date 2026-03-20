@@ -1,14 +1,13 @@
 compute_environment: LOCAL_MACHINE
 debug: false
-deepspeed_config:
-  gradient_accumulation_steps: 16
-  gradient_clipping: 1.0
-  offload_optimizer_device: cpu
-  offload_param_device: none
-  zero3_init_flag: false
-  zero3_save_16bit_model: false
-  zero_stage: 2
-distributed_type: DEEPSPEED
+fsdp_config:
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+  fsdp_backward_prefetch: BACKWARD_PRE
+  fsdp_sharding_strategy: FULL_SHARD
+  fsdp_state_dict_type: SHARDED_STATE_DICT
+  fsdp_offload_params: false
+  fsdp_cpu_ram_efficient_loading: true
+distributed_type: FSDP
 downcast_bf16: "no"
 enable_cpu_affinity: false
 machine_rank: 0
