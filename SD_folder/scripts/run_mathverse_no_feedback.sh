@@ -23,6 +23,9 @@ export PYTORCH_ALLOC_CONF=expandable_segments:True
 export TRITON_CACHE_DIR=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/.triton_cache
 export HF_DATASETS_CACHE=/home/ma-user/work/hf_cache
 
+# trl compatibility: use patched trl (0.23 + missing modules for distil_trainer)
+export PYTHONPATH=/inspire/sfs/project/inf-multimodal/public/jingyuanhuang/trl_patched:${BASE}/core:${PYTHONPATH:-}
+
 rm -rf /home/ma-user/work/hf_cache/* 2>/dev/null || true
 
 accelerate launch \
