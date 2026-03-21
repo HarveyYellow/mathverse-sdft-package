@@ -35,7 +35,8 @@ FEEDBACK_DIR = os.path.join(BASE, "mathverse_feedback_v2")
 OUTPUT_DIR = os.path.join(BASE, "mathverse_feedback_test")
 NUM_ATTEMPTS = 8
 MAX_NEW_TOKENS = 2048
-CHUNK_SIZE = 1  # problems per chunk (each expands to 8 prompts); keep at 1 to isolate failures
+CHUNK_SIZE = 16  # problems per chunk (each expands to 8 prompts)
+MAX_PROMPT_TOKENS = 7000  # filter prompts exceeding this to avoid vLLM crash
 
 # ======================== Args ========================
 parser = argparse.ArgumentParser()
@@ -109,10 +110,11 @@ SYSTEM_PROMPT = ("Solve this problem. Put your final answer in \\boxed{}. "
                  "If the question provides multiple-choice options, only put the option letter in the box.")
 
 processor = AutoProcessor.from_pretrained(MODEL_PATH)
+tokenizer = processor.tokenizer
 
 
 def build_prompt_with_feedback(idx, feedback_text):
-    """Build a prompt with feedback injected."""
+    """Build a prompt with feedback injected. Returns None if prompt exceeds MAX_PROMPT_TOKENS."""
     sample = ds[idx]
     question = sample["question"]
     images = sample["images"]
@@ -131,6 +133,12 @@ def build_prompt_with_feedback(idx, feedback_text):
     ]
 
     prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+
+    # Filter overlong prompts (text tokens only; images add more but this catches the worst cases)
+    text_token_len = len(tokenizer.encode(prompt, add_special_tokens=False))
+    if text_token_len > MAX_PROMPT_TOKENS:
+        return None
+
     img_inputs, _ = process_vision_info(messages)
 
     mm_data = {}
@@ -165,6 +173,8 @@ for chunk_start in range(0, len(pending_indices), CHUNK_SIZE):
             fb_text = fb_list[fb_idx]
 
             prompt_data = build_prompt_with_feedback(idx, fb_text)
+            if prompt_data is None:
+                continue  # skip overlong prompts
             batch_prompts.append(prompt_data)
             batch_meta.append({
                 "idx": idx,
@@ -173,6 +183,18 @@ for chunk_start in range(0, len(pending_indices), CHUNK_SIZE):
                 "answer": answer,
                 "question": question,
             })
+
+    if not batch_prompts:
+        # All prompts in this chunk were too long, write empty results
+        for idx in chunk_indices:
+            sample = ds[idx]
+            r = {"idx": idx, "question": sample["question"], "answer": sample["answer"],
+                 "responses": [], "correct_flags": [], "feedback_indices": [],
+                 "num_correct_in_8": 0, "top1": False, "top8": False, "skipped": True}
+            with open(OUTPUT_PATH, "a") as f:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+            total_done += 1
+        continue
 
     try:
         outputs = llm.generate(batch_prompts, sampling_params)
