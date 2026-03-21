@@ -16,6 +16,10 @@ import os
 os.environ["TORCH_COMPILE_DISABLE"] = "1"
 os.environ["VLLM_TORCH_COMPILE_LEVEL"] = "0"
 
+import multiprocessing
+if multiprocessing.get_start_method(allow_none=True) != "spawn":
+    multiprocessing.set_start_method("spawn", force=True)
+
 import argparse
 import json
 import glob
