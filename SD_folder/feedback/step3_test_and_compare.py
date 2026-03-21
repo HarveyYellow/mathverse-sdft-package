@@ -49,19 +49,13 @@ def check_answer(gold_str, model_output):
     return grade_answer(extracted, gold_str)
 
 
+MATHRULER_INDICES_PATH = os.path.join(BASE, "mathruler_all_wrong_indices.json")
+
+
 def get_mathruler_all_wrong():
-    """Re-score eval results with mathruler and return set of all-wrong indices."""
-    eval_results = {}
-    for f in sorted(glob.glob(f"{EVAL_DIR}/eval_shard*.jsonl")):
-        with open(f) as fh:
-            for line in fh:
-                item = json.loads(line)
-                idx = item["idx"]
-                if idx not in eval_results:
-                    new_flags = [check_answer(item["answer"], r) for r in item["responses"]]
-                    item["num_correct_in_8"] = sum(new_flags)
-                    eval_results[idx] = item
-    return {idx for idx, item in eval_results.items() if item["num_correct_in_8"] == 0}
+    """Load pre-computed mathruler all-wrong indices from file (avoids CUDA init issues)."""
+    with open(MATHRULER_INDICES_PATH) as f:
+        return set(json.load(f))
 
 
 def load_test_results(test_dir, valid_indices):
