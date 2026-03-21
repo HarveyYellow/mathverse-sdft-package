@@ -35,7 +35,7 @@ FEEDBACK_DIR = os.path.join(BASE, "mathverse_feedback_v2")
 OUTPUT_DIR = os.path.join(BASE, "mathverse_feedback_test")
 NUM_ATTEMPTS = 8
 MAX_NEW_TOKENS = 2048
-CHUNK_SIZE = 4  # problems per chunk (each expands to 8 prompts)
+CHUNK_SIZE = 1  # problems per chunk (each expands to 8 prompts); keep at 1 to isolate failures
 
 # ======================== Args ========================
 parser = argparse.ArgumentParser()
@@ -182,6 +182,9 @@ for chunk_start in range(0, len(pending_indices), CHUNK_SIZE):
 
     # Collect results by idx
     results_by_idx = {}
+    if len(outputs) != len(batch_meta):
+        print(f"[Shard {args.shard}] WARNING: outputs ({len(outputs)}) != batch_meta ({len(batch_meta)}), skipping chunk")
+        continue
     for i, output in enumerate(outputs):
         meta = batch_meta[i]
         idx = meta["idx"]
