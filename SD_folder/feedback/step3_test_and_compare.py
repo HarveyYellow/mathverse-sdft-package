@@ -16,13 +16,14 @@ import os
 os.environ["TORCH_COMPILE_DISABLE"] = "1"
 os.environ["VLLM_TORCH_COMPILE_LEVEL"] = "0"
 
-import multiprocessing
-if multiprocessing.get_start_method(allow_none=True) != "spawn":
-    multiprocessing.set_start_method("spawn", force=True)
-
 import argparse
 import json
 import glob
+# IMPORTANT: import vllm BEFORE mathruler to let vLLM set multiprocessing start method
+from vllm import LLM, SamplingParams
+from datasets import load_from_disk
+from transformers import AutoProcessor
+from qwen_vl_utils import process_vision_info
 from mathruler.grader import extract_boxed_content, grade_answer
 
 # ======================== Config ========================
@@ -156,11 +157,6 @@ if not pending:
     exit(0)
 
 # Load dataset & vLLM
-from datasets import load_from_disk
-from transformers import AutoProcessor
-from qwen_vl_utils import process_vision_info
-from vllm import LLM, SamplingParams
-
 ds = load_from_disk(DATASET_PATH + "/train")
 
 print(f"[Shard {args.shard}] Loading vLLM...")
