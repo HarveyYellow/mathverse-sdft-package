@@ -177,13 +177,8 @@ for chunk_start in range(0, len(pending_indices), CHUNK_SIZE):
     try:
         outputs = llm.generate(batch_prompts, sampling_params)
     except Exception as e:
-        print(f"[Shard {args.shard}] Chunk failed: {e}, trying one-by-one...")
-        outputs = []
-        for p in batch_prompts:
-            try:
-                outputs.extend(llm.generate([p], sampling_params))
-            except:
-                outputs.append(None)
+        print(f"[Shard {args.shard}] Chunk failed: {e}, skipping...")
+        continue
 
     # Collect results by idx
     results_by_idx = {}
